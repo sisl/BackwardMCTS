@@ -47,7 +47,7 @@ O = Diagonal(rand(state_size)) #needs to be updated with O^i
 
 Γ = []
 for i in 1:action_number
-    alpha = rand(1,state_size)
+    alpha = rand(1,state_size) #needs to be updated with the alpha vectors
     push!(Γ, alpha) 
 end
 
