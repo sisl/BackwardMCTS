@@ -1,6 +1,7 @@
 using JuMP
 using HiGHS
 using LinearAlgebra
+using Random
 
 # Model and vars
 model = Model(HiGHS.Optimizer)
@@ -17,6 +18,7 @@ function validate(O, T, Γ, j, β_t)
     @constraint(model, y+slack_var >=0)
     @constraint(model, x .<= 1)
     @constraint(model, x .>= 0)
+    @constraint(model, 1 .== ones(1,state_size)*x)
     
     for k in 1:length(Γ)
         if (k != j)
@@ -34,12 +36,14 @@ function validate(O, T, Γ, j, β_t)
     @show termination_status(model)
     @show value.(x)
     @show value.(y)
-    return value.(x)/value.(y)
+    return value.(x)
 end
+
+Random.seed!(1)
 
 normalize_Func(Trans_Func) = Trans_Func ./ sum(Trans_Func, dims=1)
 
-state_size = 100
+state_size = 4
 action_number = 4
 
 T = normalize_Func(rand(state_size,state_size)) #needs to be updated with T(a_j)
@@ -54,4 +58,5 @@ end
 β_t = normalize_Func(rand(state_size))
 β_opt = validate(O, T, Γ, 1, β_t)
 
-print(β_opt)
+@show β_t
+@show β_opt
