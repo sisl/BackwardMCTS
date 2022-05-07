@@ -1,0 +1,13 @@
+/.vscode
+/ipynb_checkpoints
+/dev
+*/__pycache__/*
+*dev*
+*.pyc
+*.jld
+*.out
+*.txt
+*.csv
+*.pkl
+*.png
+*.pdf
