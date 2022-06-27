@@ -32,5 +32,5 @@ max_t = 4
 β_levels = backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver)
 
 lvl = 1;
-init_states = root_belief(β_levels, lvl);
+init_states = root_belief(β_levels, lvl; normalize_to_1 = false);
 reshape_GW(init_states)

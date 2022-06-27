@@ -64,7 +64,7 @@ function backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver)
     return β_levels
 end
 
-function root_belief(β_levels, lvl)
+function root_belief(β_levels, lvl; normalize_to_1=true)
     res = weighted_column_sum(β_levels[lvl].W, hcat(β_levels[lvl].βt...));
-    return normalize(res)
+    return normalize_to_1 ? normalize(res) : res
 end

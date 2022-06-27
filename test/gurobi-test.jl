@@ -112,7 +112,7 @@ set_optimizer_attribute(model, "PoolSolutions", 100)
 
 
 optimize!(model)
-solution_summary(model)
+# solution_summary(model)
 
 # Let's check it worked:
 
