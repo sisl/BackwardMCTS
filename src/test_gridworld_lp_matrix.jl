@@ -1,6 +1,8 @@
 """
 This script formulates the LP the same way as "test_gridworld_lp.jl" but
 explicitly creates the A,b,c matrix and vectors.
+It does so by transforming the original problem to an equality form.
+See Section 11.1.3 of M. Kochenderfer, Algorithms for Optimization.
 """
 
 include("gridworldpomdp.jl")
