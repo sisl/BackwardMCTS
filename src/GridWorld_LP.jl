@@ -1,6 +1,6 @@
 using Suppressor
 using JuMP, HiGHS
-using LinearAlgebra: Diagonal, dot
+using LinearAlgebra: Diagonal, dot, rank
 using Random
 
 Random.seed!(1)
@@ -86,7 +86,7 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
     else    # there is only 1 solution to the LP
         @show JuMP.value.(x)
         @show JuMP.value.(y)
-        return JuMP.value.(x), JuMP.objective_value(model)
+        return JuMP.value.(x), JuMP.objective_value(model), model
     end
 end
 
