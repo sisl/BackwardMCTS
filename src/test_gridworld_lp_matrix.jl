@@ -46,9 +46,9 @@ a_star = αj = 2
 O_bar = O = create_O_bar(tab_pomdp, obs_id)
 T_bar = T = create_T_bar(tab_pomdp, a_star)
 
-β_opt, J_opt = validate(O_bar, T_bar, Γ, a_star, β_t, LP_Solver)
+β_opt, J_opt, A, b, c = validate(O_bar, T_bar, Γ, a_star, β_t, LP_Solver)
 
-@show β_opt
+β = reshape_GW(β_opt[1:no_of_states])
 
 # β_t_hat = normalize(O_bar * T_bar * β_opt);
 

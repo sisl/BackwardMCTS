@@ -32,11 +32,13 @@ max_t = 4
 β_levels = backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver)
 
 lvl = 1;
-init_states = root_belief(β_levels, lvl; normalize_to_1 = false);
+init_states = root_belief(β_levels, lvl; normalize_to_1 = true);
 reshape_GW(init_states)
 
-# TODOs
+
+# INFO
 # 0. Use matrix form of the same problem
 # 1. Get vertices
 # 2. Sample from belief space
+
 # 3. Branch out to these sampled beliefs

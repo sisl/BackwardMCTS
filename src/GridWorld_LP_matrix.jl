@@ -1,3 +1,5 @@
+include("VertexPivot.jl")
+
 using Suppressor
 using JuMP
 using LinearAlgebra: Diagonal, dot, rank
@@ -128,7 +130,7 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
     
     # @assert rank(A) == size(A, 1)    # assert that A is full rank
     if rank(A) != size(A, 1)
-        return zeros(1,no_of_states), Inf
+        return zeros(1,no_of_states), Inf, A, b, c
     end
     
     @constraint(model, A*X .== b)
@@ -143,10 +145,10 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
     @show termination_status(model)
     
     if termination_status(model) == JuMP.MathOptInterface.INFEASIBLE || termination_status(model) == JuMP.MathOptInterface.OTHER_ERROR || termination_status(model) == JuMP.MathOptInterface.INFEASIBLE_OR_UNBOUNDED
-        return zeros(1,no_of_states), Inf
+        return zeros(1,no_of_states), Inf, A, b, c
 
     else
-        return JuMP.value.(X)[1:no_of_states], JuMP.objective_value(model)
+        return JuMP.value.(X), JuMP.objective_value(model), A, b, c
     end
 end
 
@@ -156,30 +158,44 @@ function validate_all_actions(tab_pomdp, obs_id, policy, β_t, LP_Solver)
 
     res = @suppress map(αj->validate(O, create_T_bar(tab_pomdp, policy.action_map[αj]), Γ, αj, β_t, LP_Solver), 1:length(Γ))
     
-    # a_star = argmin(getindex.(res, Ref(2)))   # index=2 is the obj value
-    # β_opt = res[a_star][1]                    # index=1 is the x value
 
     J_min = minimum(getindex.(res, Ref(2)))   # index=2 is the obj value
     a_star = getindex.(res, Ref(2)) .== J_min
-    β_opt = getindex.(res[a_star], Ref(1))    # index=1 is the x value
-    return unique(β_opt)
+
+    X_inits = getindex.(res[a_star], Ref(1))    # index=1 is the x value
+
+    A_matrices = getindex.(res[a_star], Ref(3))   # index=3 is the A matrix
+    A_matrices = collect.(A_matrices);
+    
+    b_vectors = getindex.(res[a_star], Ref(4))   # index=4 is the b matrix
+    b_vectors = collect.(b_vectors);
+
+    c_vectors = getindex.(res[a_star], Ref(5))   # index=5 is the c matrix
+    c_vectors = collect.(c_vectors);
+
+    emptySets = [Set() for _ in 1:sum(a_star)]
+    LPs = LinearProgram.(A_matrices, b_vectors, c_vectors, X_inits, Ref(no_of_states), emptySets);
+    Bs = get_valid_partition.(A_matrices, X_inits);
+
+    @suppress get_polygon_vertices!.(Bs, LPs);
+    return LPs
 end
 
-function validate_all_actions_multiple_solutions(tab_pomdp, obs_id, policy, β_t, LP_Solver)
-    """
-    This functions is for the case where there are multiple solutions to the LP. 
-    It is not fully implemented as this case has never arose.
-    """
-    Γ = policy.alphas
-    O = create_O_bar(tab_pomdp, obs_id)
+function sample_from_belief_subspace(LP, belief_N)
+    X_stars = reshape(Float64[], LP.no_of_states, 0)
+    samples = []
 
-    res = @suppress map(αj->validate(O, create_T_bar(tab_pomdp, policy.action_map[αj]), Γ, αj, β_t, LP_Solver), 1:length(Γ))
+    for B in LP.vertices
+        x_star = extract_vertex(B, LP)[1:LP.no_of_states]
+        X_stars = add_columns(X_stars, x_star)
+    end
 
-    J_values = collect(Iterators.flatten(getindex.(res, Ref(2))))   # index=2 is the obj value
-    J_min = minimum(J_values)
-    a_star = (J_values .== J_min)
+    n = size(X_stars, 2)
+    for _ in 1:belief_N
+        w = normalize(rand(n))
+        s = X_stars * w
+        push!(samples, s)
+    end
 
-    β_values = collect(Iterators.flatten(getindex.(res, Ref(1))))    # index=1 is the x value
-    β_opt = β_values[a_star]
-    return unique(β_opt)
+    return samples
 end
