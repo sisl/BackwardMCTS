@@ -1,5 +1,5 @@
 include("gridworldpomdp.jl")
-include("GridWorld_MCTS.jl")
+include("GridWorld_MCTS_matrix.jl")
 
 using JuMP, Gurobi
 using POMDPPolicies: solve
@@ -34,3 +34,9 @@ max_t = 4
 lvl = 1;
 init_states = root_belief(β_levels, lvl; normalize_to_1 = false);
 reshape_GW(init_states)
+
+# TODOs
+# 0. Use matrix form of the same problem
+# 1. Get vertices
+# 2. Sample from belief space
+# 3. Branch out to these sampled beliefs
