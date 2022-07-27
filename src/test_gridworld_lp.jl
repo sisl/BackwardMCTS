@@ -26,10 +26,11 @@ policy = solve(solver, tab_pomdp)
 
 # Create leaf belief
 β_t = zeros(no_of_states,)
-β_t[4] = 0.45
+β_t[2] = 0.45
 β_t[5] = 0.55
 obs_id = 5
 a_star = 4
+
 # β_t[3] = 1.0
 # obs_id = 3
 # a_star = 2

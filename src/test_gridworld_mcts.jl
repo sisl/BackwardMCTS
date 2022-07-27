@@ -12,7 +12,7 @@ LP_Solver = HiGHS.Optimizer
 pomdp = SimpleGridWorldPOMDP(size=(4,4),
                             rewards=Dict(GWPos(2,3)=>-10.0, GWPos(3,1)=>+25.0)
                             ,
-                            tprob = 1.0,
+                            tprob = 0.99,
                             oprob = 1.0)
 
 tab_pomdp = tabulate(pomdp)
@@ -34,3 +34,8 @@ max_t = 4
 lvl = 1;
 init_states = root_belief(β_levels, lvl; normalize_to_1 = false);
 reshape_GW(init_states)
+
+# TODOs
+# 1. Get vertices
+# 2. Sample from belief space
+# 3. Branch out to these sampled beliefs

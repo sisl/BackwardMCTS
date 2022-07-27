@@ -8,19 +8,19 @@ See Section 11.1.3 of M. Kochenderfer, Algorithms for Optimization.
 include("gridworldpomdp.jl")
 include("GridWorld_LP.jl")
 
-using JuMP, HiGHS
+using JuMP, Gurobi
 using POMDPPolicies: solve
 using QMDP
 
 # Params
-LP_Solver = HiGHS.Optimizer
+LP_Solver = Gurobi.Optimizer
 
 # Create pomdp
 pomdp = SimpleGridWorldPOMDP(size=(4,4),
                             rewards=Dict(GWPos(2,3)=>-10.0, GWPos(3,1)=>+25.0)
                             ,
-                            tprob = 0.7,
-                            oprob = 0.6)
+                            tprob = 0.99,
+                            oprob = 1.0)
 
 tab_pomdp = tabulate(pomdp)
 no_of_actions = length(actions(pomdp))
@@ -33,14 +33,14 @@ policy = solve(solver, tab_pomdp)
 
 # Create leaf belief
 β_t = zeros(no_of_states,)
-β_t[4] = 0.45
-β_t[5] = 0.55
-obs_id = 5
-a_star = αj = 4
+# β_t[4] = 0.45
+# β_t[5] = 0.55
+# obs_id = 5
+# a_star = αj = 4
 
-# β_t[3] = 1.0
-# obs_id = 3
-# a_star = αj = 2
+β_t[3] = 1.0
+obs_id = 3
+a_star = αj = 2
 
 # Solve for root belief
 O_bar = O = create_O_bar(tab_pomdp, obs_id)
