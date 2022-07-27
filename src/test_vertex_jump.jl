@@ -1,20 +1,13 @@
-function edge_transition(LP, B, q)
-    A, b, c = LP.A, LP.b, LP.c
-    n = size(A, 2)
-    b_inds = sort(B)
-    n_inds = sort!(setdiff(1:n, B))
-    AB = A[:,b_inds]
-    d, xB = AB\A[:,n_inds[q]], AB\b
-    p, xq′ = 0, Inf
-    for i in 1 : length(d)
-        if d[i] > 0
-            v = xB[i] / d[i]
-            if v < xq′
-                p, xq′ = i, v
-            end
+remove(col, item) = col[col .!= item]
+
+function remove_redundant_col(B, rank_des)
+    for idx in reverse(B)  #keep reverse
+        temp = remove(B, idx)
+        AB = A[:,temp];
+        if rank(AB) == rank_des
+            return temp
         end
     end
-    return (p, xq′)
 end
 
 mutable struct LinearProgram
@@ -36,75 +29,88 @@ function get_vertex(B, LP)
     return x
 end
 
-function step_lp!(B, LP)
+function edge_transitions!(LP, B, q)
     ϵ = 1e-10
-    A, b, c = LP.A, LP.b, LP.c
-    n = size(A, 2)
-    b_inds = sort!(B)
-    AB = A[:,b_inds]
-
-    xB = vec(AB\b)
-    b_inds = b_inds[abs.(xB) .> ϵ]
-    n_inds = sort!(setdiff(1:n, b_inds))
-    AV = A[:,n_inds]
-    
-    cB = c[b_inds]
-    λ = AB' \ cB
-    cV = c[n_inds]
-    μV = cV - AV'*λ
-    @show λ
-    @show μV
-    q, p, xq′, Δ = 0, 0, Inf, Inf
-    for i in 1 : length(μV)
-        if μV[i] <= 0
-            pi, xi′ = edge_transition(LP, B, i)
-            if μV[i]*xi′ < Δ
-                q, p, xq′, Δ = i, pi, xi′, μV[i]*xi′
-            end
-        end
-    end
-    @show q
-    if q == 0
-        return (B, true) # optimal point found
-    end
-    if isinf(xq′)
-        error("unbounded")
-    end
-    j = findfirst(isequal(b_inds[p]), B)
-    B[j] = n_inds[q] # swap indices
-    @show n_inds[q]
-    @show B'
-    return (B, false) # new vertex but not optimal
-end
-
-function edge_transition_new(LP, B, q)
-    ϵ = 1e-10
-    A, b, c = LP.A, LP.b, LP.c
+    A, b, c, no_of_states = LP.A, LP.b, LP.c, LP.no_of_states
+    rank_des = rank(A)
     n = size(A, 2)
     b_inds = sort(B)
     n_inds = sort!(setdiff(1:n, B))
     AB = A[:,b_inds]
     d, xB = AB\A[:,q], AB\b
-    p, xq′ = 0, Inf
-    for i in 1 : length(d)
-        if d[i] > 0
-            v = xB[i] / d[i]
-            if v < xq′
-                p, xq′ = i, v
-            end
+
+    current_sol = xB[B .< no_of_states]
+    current_vertex = B[B .< no_of_states]
+    current_vertex = current_vertex[current_sol .> ϵ]
+
+    for p in current_vertex
+        flag, B′ = find_bases(LP, B, rank_des, q, p)
+        if flag
+            # b_inds = sort!(B′)
+            # AB = A[:,b_inds]
+            # xB = AB\b
+            # temp_sol = xB[B′ .< no_of_states]
+            # temp_vertex = B′[B′ .< no_of_states]
+            # temp_vertex = temp_vertex[temp_sol .> ϵ]
+            # push!(LP.vertices, temp_vertex)
+
+            push!(LP.vertices, sort(B′))
         end
     end
-    return (p, xq′)
 end
 
+
+function find_bases(LP, B, rank_des, q, p)
+    # entering: q
+    # leaving:  p
+
+    B0 = B
+
+    B = remove(B, p)
+    n = size(LP.A, 2)
+
+    # Add zero vertices if required
+    V = collect(1:n)
+    deleteat!(V, B)
+    sort!(push!(B, q))
+    V = remove(V, q)
+
+    # see if by just swapping q and p, we can have full-rank
+    if rank(A[:,B]) == rank_des
+        return (true, B)
+
+    # see if with q and p coexisting, we can have full-rank
+    else
+        push!(B, p)
+        if rank(A[:,B]) == rank_des
+            B = remove_redundant_col(B, rank_des)
+            return (true, B)
+        end 
+    end
+
+    # try to find another col to add for full rank
+    V = remove(V, p)
+    for idx = length(V) : -1 : 1  #keep reverse
+        temp = vcat(B, [V[idx]])
+        AB = A[:,temp];
+        if rank(AB) == rank_des
+            return (true, sort(B))
+        end
+    end
+
+    return (false, B0)
+end
+
+
 function step_lp!(B, LP)
-    A, b, c = LP.A, LP.b, LP.c
+    ϵ = 1e-10
+    A, b, c, no_of_states = LP.A, LP.b, LP.c, LP.no_of_states
     n = size(A, 2)
     b_inds = sort!(B)
     n_inds = sort!(setdiff(1:n, B))
     AB, AV = A[:,b_inds], A[:,n_inds]
     @show(size(AB))
-    AB = AB .+ 1e-6*LinearAlgebra.I(size(A,1))
+    # AB = AB .+ 1e-6*LinearAlgebra.I(size(A,1))
     xB = AB\b
     cB = c[b_inds]
     λ = AB' \ cB
@@ -112,38 +118,20 @@ function step_lp!(B, LP)
     μV = cV - AV'*λ
     @show λ
     @show μV
-    q, p, xq′, Δ = 0, 0, Inf, Inf
 
-    for i in 1 : length(μV)
-        if μV[i] <= 0
-            pi, xi′ = edge_transition(LP, B, i)
-            if μV[i]*xi′ < Δ
-                q, p, xq′, Δ = i, pi, xi′, μV[i]*xi′
-            end
-        end
+    current_sol = xB[B .< no_of_states]
+    current_vertex = B[B .< no_of_states]
+    current_vertex = current_vertex[current_sol .> ϵ]
+    push!(LP.vertices, B)
+
+    possible_pivots = n_inds[(1:length(μV))[μV .<= ϵ]]
+    
+    for q in possible_pivots
+        edge_transitions!(LP, B, q) # --> TODO: This should call itself recursively
     end
-    @show q
-    if q == 0
-        return (B, true) # optimal point found
-    end
-    if isinf(xq′)
-        error("unbounded")
-    end
-    j = findfirst(isequal(b_inds[p]), B)
-    B[j] = n_inds[q] # swap indices
-    @show n_inds[q]
-    @show B'
-    return (B, false) # new vertex but not optimal
+
 end
 
-function minimize_lp!(B, LP)
-    done = false
-    while !done
-        @show time()
-        B, done = step_lp!(B, LP)
-    end
-    return B
-end
 
 function get_valid_partition(A, X)
     @assert rank(A) == size(A, 1)    # matrix A must be full-rank
@@ -182,13 +170,13 @@ A = collect(A);
 LP = LinearProgram(A, b, c, no_of_states, Set());
 B = get_valid_partition(A, X)
 
-# minimize_lp!(B, LP);
+step_lp!(B, LP);
 x_star = get_vertex(B, LP)
 
 β = reshape_GW(x_star[1:no_of_states])
 
-# TODOs:
+# INFO:
 # 1. Pre-solve and find the A,b,c matrices.
 # 2. Change the code above s.t. we traverse optimal vertices.
 # 3. When you make an edge edge_transition, the leaving index MUST BE one of the nonzero
-# elements in the first no_of_states entries of B.
+#    elements in the first no_of_states entries of B.
