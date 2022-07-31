@@ -12,7 +12,7 @@ LP_Solver = Gurobi.Optimizer
 pomdp = SimpleGridWorldPOMDP(size=(4,4),
                             rewards=Dict(GWPos(2,3)=>-10.0, GWPos(3,1)=>+25.0)
                             ,
-                            tprob = 0.99,
+                            tprob = 1.0,
                             oprob = 1.0)
 
 tab_pomdp = tabulate(pomdp)

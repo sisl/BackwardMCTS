@@ -166,6 +166,9 @@ function get_valid_partition(A, X)
     end
 end
 
+
+# USAGE:
+
 # include("test_gridworld_lp_matrix.jl")    # get A,b,C matrices
 
 # A = collect(A);

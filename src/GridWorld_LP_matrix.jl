@@ -13,6 +13,8 @@ create_O_bar(tab_pomdp, obs) = Diagonal(tab_pomdp.O[obs, 1, :])
 add_columns = hcat
 add_rows = vcat
 
+fix_overflow!(val, ϵ=1e-10) = val[abs.(val) .< ϵ] .= 0.0
+
 function reshape_GW(A::AbstractVector)
     no_of_states = length(A)
     N = Int(sqrt(no_of_states-1))
@@ -127,6 +129,9 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
     
     A, b = add_nullspace_constraint(A, b, O, T);
     
+    c = zeros(1, no_of_LP_vars);
+    c[no_of_states+1 : 2*no_of_states] .= 1
+    @objective(model, Min, dot(c,X))
     
     # @assert rank(A) == size(A, 1)    # assert that A is full rank
     if rank(A) != size(A, 1)
@@ -135,10 +140,6 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
     
     @constraint(model, A*X .== b)
     @constraint(model, X .>= 0)
-    
-    c = zeros(1, no_of_LP_vars);
-    c[no_of_states+1 : 2*no_of_states] .= 1
-    @objective(model, Min, dot(c,X))
     
     # print(model)
     optimize!(model)
@@ -181,13 +182,14 @@ function validate_all_actions(tab_pomdp, obs_id, policy, β_t, LP_Solver)
     return LPs
 end
 
-function sample_from_belief_subspace(LP, belief_N)
+function samples_from_belief_subspace(LP, belief_N)
     X_stars = reshape(Float64[], LP.no_of_states, 0)
     samples = []
 
     for B in LP.vertices
         x_star = extract_vertex(B, LP)[1:LP.no_of_states]
-        X_stars = add_columns(X_stars, x_star)
+        fix_overflow!(x_star)
+        X_stars = add_columns(X_stars, normalize(x_star))
     end
 
     n = size(X_stars, 2)
@@ -198,4 +200,16 @@ function sample_from_belief_subspace(LP, belief_N)
     end
 
     return samples
+end
+
+function vertices_from_belief_subspace(LP)
+    X_stars = []
+
+    for B in LP.vertices
+        x_star = extract_vertex(B, LP)[1:LP.no_of_states]
+        fix_overflow!(x_star)
+        push!(X_stars, normalize(x_star))
+    end
+
+    return X_stars
 end
