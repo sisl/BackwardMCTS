@@ -1,6 +1,6 @@
 remove(col, item) = col[col .!= item]
 
-function remove_redundant_col(B, rank_des)
+function remove_redundant_col(A, B, rank_des)
     for idx in reverse(B)  #keep reverse
         temp = remove(B, idx)
         AB = A[:,temp];
@@ -85,7 +85,7 @@ function find_bases(LP, B, rank_des, q, p)
     else
         push!(B, p)
         if rank(A[:,B]) == rank_des
-            B = remove_redundant_col(B, rank_des)
+            B = remove_redundant_col(A, B, rank_des)
             return (true, B)
         end 
     end
@@ -108,8 +108,12 @@ function get_polygon_vertices!(B, LP)
     ϵ = 1e-10
     A, b, c, no_of_states = LP.A, LP.b, LP.c, LP.no_of_states
     n = size(A, 2)
-    b_inds = sort!(B)
-    n_inds = sort!(setdiff(1:n, B))
+    # b_inds = sort(B)
+    # n_inds = sort(setdiff(1:n, B))
+    # @assert b_inds == B
+    # @assert n_inds == setdiff(1:n, B)
+    b_inds = B
+    n_inds = setdiff(1:n, B)
     AB, AV = A[:,b_inds], A[:,n_inds]
     @show(size(AB))
     # AB = AB .+ 1e-6*LinearAlgebra.I(size(A,1))
@@ -121,12 +125,13 @@ function get_polygon_vertices!(B, LP)
     @show λ
     @show μV
 
-    current_sol = xB[B .< no_of_states]
-    current_vertex = B[B .< no_of_states]
-    current_vertex = current_vertex[current_sol .> ϵ]
+    # current_sol = xB[B .< no_of_states]
+    # current_vertex = B[B .< no_of_states]
+    # current_vertex = current_vertex[current_sol .> ϵ]
     push!(LP.vertices, B)
 
-    possible_pivots = n_inds[(1:length(μV))[μV .<= ϵ]]
+    possible_pivots = n_inds[(1:length(μV))[abs.(μV) .<= ϵ]]
+    possible_pivots = possible_pivots[possible_pivots .< no_of_states]
     
     for q in possible_pivots
         edge_transitions!(LP, B, q) # --> TODO: This should call itself recursively
@@ -162,7 +167,7 @@ function get_valid_partition(A, X)
             end
         end
 
-        return B
+        return sort(B)
     end
 end
 

@@ -32,7 +32,7 @@ end
 
 function backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver)
     obs_N = 5
-    belief_N = 2
+    belief_N = 100
     tab_pomdp = tabulate(pomdp)
 
     β_levels = Dict()
@@ -61,10 +61,18 @@ function backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver)
             
             LPs = flatten(LPs);
             S = samples_from_belief_subspace.(LPs, Ref(belief_N));
-            S, elems = unique_elems(flatten(S));
 
-            # Backpropagate belief samples (as separate branches)
-            w_prevs = W_next.*obs_weights[elems]
+
+            # # Backpropagate belief samples (as separate branches)
+            # S, elems = unique_elems(flatten(S));
+            # w_prevs = W_next.*obs_weights[elems]
+
+
+            S = flatten(S);
+            w_prevs = W_next.*obs_weights
+
+            S, w_prevs = unique_elems_weights(S, w_prevs)
+
             append!(β, S)
             append!(W, w_prevs)
         end
@@ -72,6 +80,15 @@ function backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver)
         push!(β_levels, t => βts_and_weights(β, W))
     end
     return β_levels
+end
+
+function scale_weights!(w)
+    wu = unique(w)
+    for item in wu
+        elems = (w.==item)
+        amount = sum(elems)
+        w[elems] .= item/amount
+    end
 end
 
 function root_belief(β_levels, lvl; normalize_to_1=true)
@@ -82,4 +99,14 @@ end
 function unique_elems(S)
     elems = unique(i -> S[i], 1:length(S))
     return S[elems], elems
+end
+
+function unique_elems_weights(S, w)
+    uS = unique(S)
+    dd = Dict(uS.=>zeros(length(uS)))
+
+    for (idx, item) in enumerate(S)
+        dd[item] += w[idx]
+    end
+    return collect(keys(dd)), collect(values(dd))
 end

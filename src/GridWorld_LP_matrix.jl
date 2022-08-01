@@ -34,6 +34,10 @@ function normalize(A::AbstractVector)
     return A ./ sum(A)
 end
 
+function normalize!(A::AbstractVector)
+    A[:] .= A ./ sum(A)
+end
+
 function obj_func(O, T, β_t, x)
     no_of_states = length(x)
     y = ones(1,no_of_states)*O*T*x
