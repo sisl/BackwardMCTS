@@ -221,10 +221,11 @@ end
 
 function remove_polygon_vertices!(LP, Γ, act)
     @show act
+    ϵ = 1e-10
     for B in LP.vertices
         x_star = extract_vertex(B, LP)
-        utilities = dot.(Γ, Ref(x_star[1:17]))
-        if maximum(utilities) != utilities[act]
+        utilities = dot.(Γ, Ref(x_star[1:LP.no_of_states]))
+        if abs(maximum(utilities) - utilities[act]) > ϵ
             delete!(LP.vertices, B)
         end
     end
