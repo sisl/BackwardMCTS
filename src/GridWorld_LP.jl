@@ -37,7 +37,7 @@ end
 
 function validate(O, T, Γ, αj, β_t, LP_Solver)
     no_of_states = length(β_t)
-    slack_var = 1e-5
+    slack_var = 1.0
 
     model = Model(LP_Solver)
 
@@ -45,11 +45,11 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
     @variable(model, u[1:no_of_states])
     @variable(model, y)
     
-    @constraint(model, y .== ones(1,no_of_states)*O*T*x)
-    @constraint(model, y >= slack_var)
-    @constraint(model, x .<= 1)
+    @constraint(model, 1.0 .== ones(1,no_of_states)*O*T*x)
+    @constraint(model, y == slack_var)
+    # @constraint(model, x .<= 1)  # --> this constraint is actually redundant
     @constraint(model, x .>= 0)
-    @constraint(model, 1 .== ones(1,no_of_states)*x)
+    # @constraint(model, 1 .== ones(1,no_of_states)*x)
     
     # Constraint: α-vector must be optimal for `x`
     for αk in 1:length(Γ)
@@ -76,7 +76,7 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
     @show termination_status(model)
     
     if termination_status(model) == JuMP.MathOptInterface.INFEASIBLE || termination_status(model) == JuMP.MathOptInterface.OTHER_ERROR || termination_status(model) == JuMP.MathOptInterface.INFEASIBLE_OR_UNBOUNDED
-        return zeros(1,no_of_states), Inf
+        return zeros(1,no_of_states), Inf, nothing
 
     elseif JuMP.result_count(model) > 1    # there are more than 1 solutions to the LP
         solutions_x = [JuMP.value.(x; result=si).data for si in 1:result_count(model)]

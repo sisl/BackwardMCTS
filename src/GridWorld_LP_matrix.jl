@@ -48,7 +48,7 @@ end
 
 function validate(O, T, Γ, αj, β_t, LP_Solver)
     no_of_states = length(β_t)
-    eps_var = 1e-5
+    eps_var = 1.0
 
     # @variable(model, x[1:no_of_states])
     # @variable(model, u[1:no_of_states])
@@ -66,7 +66,7 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
 
     model = Model(LP_Solver)
 
-    no_of_LP_vars = 5 * no_of_states + 5
+    no_of_LP_vars = 4 * no_of_states + 4
     @variable(model, X[1 : no_of_LP_vars])
     
     zr = zeros(1, no_of_states);
@@ -76,12 +76,10 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
     Eye = Diagonal(ones(no_of_states));
     
     # Default constraints
-    A = [[vn*O*T zr -1 0 zr];
-         [zr zr 1 -1 zr];
-         [Eye Zr zr' zr' Eye];
-         [vn zr 0 0 zr]]
+    A = [[vn*O*T zr 0];
+         [zr zr 1]]
     
-    b = [0; eps_var; vn'; 1]
+    b = [1.0; eps_var]
     
     
     # Alpha-vector constraints
@@ -95,7 +93,7 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
                 
                 temp = zeros(1, length(Γ)-1)
                 temp[counter] = -1
-                A = add_rows(A, [(Γ[αj]-Γ[αk])' zr 0 0 zr temp]);
+                A = add_rows(A, [(Γ[αj]-Γ[αk])' zr 0 temp]);
                 
             end
         end
@@ -109,8 +107,8 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
     
     # L1 norm constraints
     A = add_columns(A, zeros(size(A, 1), 2*no_of_states));
-    A = add_rows(A, [-O*T -Eye β_t zr' Zr zr' zr' zr' Eye Zr]);
-    A = add_rows(A, [-O*T  Eye β_t zr' Zr zr' zr' zr' Zr -Eye]);
+    A = add_rows(A, [-O*T -Eye β_t zr' zr' zr' Eye Zr]);
+    A = add_rows(A, [-O*T  Eye β_t zr' zr' zr' Zr -Eye]);
     b = add_rows(b, [zr'; zr']);
     
     
@@ -180,9 +178,12 @@ function validate_all_actions(tab_pomdp, obs_id, policy, β_t, LP_Solver)
 
     emptySets = [Set() for _ in 1:sum(a_star)]
     LPs = LinearProgram.(A_matrices, b_vectors, c_vectors, X_inits, Ref(no_of_states), emptySets);
+    # global gA_matrices = A_matrices
+    # global gX_inits = X_inits
     Bs = get_valid_partition.(A_matrices, X_inits);
 
     @suppress get_polygon_vertices!.(Bs, LPs);
+    @suppress remove_polygon_vertices!.(LPs, Ref(Γ), (1:length(a_star))[a_star]);
     return LPs
 end
 
@@ -216,4 +217,15 @@ function vertices_from_belief_subspace(LP)
     end
 
     return X_stars
+end
+
+function remove_polygon_vertices!(LP, Γ, act)
+    @show act
+    for B in LP.vertices
+        x_star = extract_vertex(B, LP)
+        utilities = dot.(Γ, Ref(x_star[1:17]))
+        if maximum(utilities) != utilities[act]
+            delete!(LP.vertices, B)
+        end
+    end
 end
