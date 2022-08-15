@@ -31,8 +31,8 @@ struct βts_and_weights
 end
 
 function backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver)
+    belief_N = 25
     obs_N = 5
-    belief_N = 100
     tab_pomdp = tabulate(pomdp)
 
     β_levels = Dict()

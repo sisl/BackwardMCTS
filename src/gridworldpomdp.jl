@@ -31,6 +31,15 @@ The states are represented by 2-element static vectors of integers. Typically an
     discount::Float64               = 0.95
 end
 
+function reshape_GW(A::AbstractVector)
+    no_of_states = length(A)
+    N = Int(sqrt(no_of_states-1))
+    res = reshape(A[1:end-1], (N,N))
+    return rotl90(res)
+end
+
+reshape_GW(A::AbstractMatrix) = reshape_GW(vec(A))
+
 """
 Converts a `SimpleGridWorldPOMDP` object to a `POMDPModels.TabularPOMDP` object.
 Useful for offline policy creation, and policy validation.

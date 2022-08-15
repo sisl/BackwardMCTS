@@ -15,20 +15,11 @@ add_rows = vcat
 
 fix_overflow!(val, ϵ=1e-10) = val[abs.(val) .< ϵ] .= 0.0
 
-function reshape_GW(A::AbstractVector)
-    no_of_states = length(A)
-    N = Int(sqrt(no_of_states-1))
-    res = reshape(A[1:end-1], (N,N))
-    return rotl90(res)
-end
-
 function zeros_except(N::Int, idx::Int)
     res = zeros(N,)
     res[idx] = 1.0
     return res
 end
-
-reshape_GW(A::AbstractMatrix) = reshape_GW(vec(A))
 
 function normalize(A::AbstractVector)
     return A ./ sum(A)
