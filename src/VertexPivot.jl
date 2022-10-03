@@ -17,6 +17,7 @@ mutable struct LinearProgram
     X_init
     no_of_states
     vertices
+    a_star
 end
 
 function extract_vertex(B, LP)

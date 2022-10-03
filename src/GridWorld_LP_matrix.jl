@@ -13,7 +13,7 @@ create_O_bar(tab_pomdp, obs) = Diagonal(tab_pomdp.O[obs, 1, :])
 add_columns = hcat
 add_rows = vcat
 
-fix_overflow!(val, ϵ=1e-10) = val[abs.(val) .< ϵ] .= 0.0
+fix_overflow!(val, ϵ=1e-10) = val[val .< ϵ] .= 0.0
 
 function zeros_except(N::Int, idx::Int)
     res = zeros(N,)
@@ -146,15 +146,16 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
     end
 end
 
-function validate_all_actions(tab_pomdp, obs_id, policy, β_t, LP_Solver)
+function validate_all_actions(tab_pomdp, obs_id, policy, β_next, LP_Solver)
     Γ = policy.alphas
     O = create_O_bar(tab_pomdp, obs_id)
 
-    res = @suppress map(αj->validate(O, create_T_bar(tab_pomdp, policy.action_map[αj]), Γ, αj, β_t, LP_Solver), 1:length(Γ))
+    res = @suppress map(αj->validate(O, create_T_bar(tab_pomdp, policy.action_map[αj]), Γ, αj, β_next, LP_Solver), 1:length(Γ))
     
 
     J_min = minimum(getindex.(res, Ref(2)))   # index=2 is the obj value
     a_star = getindex.(res, Ref(2)) .== J_min
+    a_star_idxs = (1:length(a_star))[a_star]
 
     X_inits = getindex.(res[a_star], Ref(1))    # index=1 is the x value
 
@@ -168,13 +169,11 @@ function validate_all_actions(tab_pomdp, obs_id, policy, β_t, LP_Solver)
     c_vectors = collect.(c_vectors);
 
     emptySets = [Set() for _ in 1:sum(a_star)]
-    LPs = LinearProgram.(A_matrices, b_vectors, c_vectors, X_inits, Ref(no_of_states), emptySets);
-    # global gA_matrices = A_matrices
-    # global gX_inits = X_inits
+    LPs = LinearProgram.(A_matrices, b_vectors, c_vectors, X_inits, Ref(no_of_states), emptySets, a_star_idxs);
     Bs = get_valid_partition.(A_matrices, X_inits);
 
     @suppress get_polygon_vertices!.(Bs, LPs);
-    @suppress remove_polygon_vertices!.(LPs, Ref(Γ), (1:length(a_star))[a_star]);
+    @suppress remove_polygon_vertices!.(LPs, Ref(Γ), a_star_idxs);
     return LPs
 end
 
@@ -189,10 +188,15 @@ function samples_from_belief_subspace(LP, belief_N)
     end
 
     n = size(X_stars, 2)
-    for _ in 1:belief_N
-        w = normalize(rand(n))
-        s = X_stars * w
-        push!(samples, s)
+    dirc = Dirichlet(ones(n))
+    if n==1
+        return [vec(X_stars)]
+    else
+        for _ in 1:belief_N
+            w = normalize(rand(dirc))
+            s = X_stars * w
+            push!(samples, s)
+        end
     end
 
     return samples

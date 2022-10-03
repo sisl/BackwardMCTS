@@ -6,6 +6,7 @@ using ProgressBars
 Tqdm(obj) = length(obj) == 1 ? obj : ProgressBars.tqdm(obj)
 
 flatten(A) = collect(Iterators.flatten(A))
+flatten_twice(A) = flatten(flatten(A))
 
 function nonzero(A)
     idx = A .!= 0.0
@@ -26,58 +27,57 @@ function maxk(A, k)
 end
 
 struct βts_and_weights
-    βt
+    β
     W
+    ao
 end
 
 function backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver)
     belief_N = 25
     obs_N = 5
     tab_pomdp = tabulate(pomdp)
+    actions_pomdp = actions(pomdp)
 
     β_levels = Dict()
-    push!(β_levels, max_t => βts_and_weights([β_final], [1.0]))
+    push!(β_levels, 0 => βts_and_weights([β_final], [1.0], [(:end, -1)]))
 
-    for t = tqdm(max_t-1 :-1 :1)
+    for t = Tqdm(1:max_t)
 
-        lvl = β_levels[t+1]
+        lvl = β_levels[t-1]
         β = []
         W = []
+        AO = []
         
         for l = Tqdm(1:length(lvl.W))
-            β_next = lvl.βt[l]
+            β_next = lvl.β[l]
             W_next = lvl.W[l]
+            AO_next = lvl.ao[l]
 
             # Sample possible observations (with weights)
             nonzero_weights, nonzero_states = nonzero(β_next)
             obs_weights = weighted_column_sum(nonzero_weights, tab_pomdp.O[:, end, nonzero_states])
-            obs_samples, obs_samples_weights = maxk(obs_weights, obs_N)
+            obs_samples, _ = maxk(obs_weights, obs_N)
 
             # Get previous beliefs, given the sampled observation and optimal policy
+            ## This part is backwards in time (from leaf to root)
             LPs = map(obs_id -> validate_all_actions(tab_pomdp, obs_id, policy, β_next, LP_Solver), obs_samples);
+            S = map(LP -> samples_from_belief_subspace.(LP, Ref(belief_N)), LPs);
 
-            obs_repeat = map(id -> length(LPs[id]), 1:length(obs_samples)) .* belief_N
-            obs_weights = vcat(fill.(obs_samples_weights, obs_repeat)...)
-            
-            LPs = flatten(LPs);
-            S = samples_from_belief_subspace.(LPs, Ref(belief_N));
+            # Compute weights for branches
+            ## This part is forward in time (from root to leaf)
+            Weights = get_branch_weights.(Ref(tab_pomdp), obs_samples, LPs, S)
+            ActObs = get_branch_actobs.(Ref(actions_pomdp), Ref(AO_next), obs_samples, LPs, S)
 
-
-            # # Backpropagate belief samples (as separate branches)
-            # S, elems = unique_elems(flatten(S));
-            # w_prevs = W_next.*obs_weights[elems]
-
-
-            S = flatten(S);
-            w_prevs = W_next.*obs_weights
-
-            S, w_prevs = unique_elems_weights(S, w_prevs)
+            S = flatten_twice(S);
+            Weights = flatten_twice(Weights);
+            ActObs = flatten_twice(ActObs);
 
             append!(β, S)
-            append!(W, w_prevs)
+            append!(W, Weights * W_next)
+            append!(AO, ActObs)
         end
         
-        push!(β_levels, t => βts_and_weights(β, W))
+        push!(β_levels, t => βts_and_weights(β, W, AO))
     end
     return β_levels
 end
@@ -89,11 +89,6 @@ function scale_weights!(w)
         amount = sum(elems)
         w[elems] .= item/amount
     end
-end
-
-function root_belief(β_levels, lvl; normalize_to_1=true)
-    res = weighted_column_sum(β_levels[lvl].W, hcat(β_levels[lvl].βt...));
-    return normalize_to_1 ? normalize(res) : res
 end
 
 function unique_elems(S)
@@ -109,4 +104,47 @@ function unique_elems_weights(S, w)
         dd[item] += w[idx]
     end
     return collect(keys(dd)), collect(values(dd))
+end
+
+function get_branch_weights(tab_pomdp, obs, programs, belief_samples)
+    BW = []
+    for (lp, samples) in zip(programs, belief_samples)
+        optimal_act = lp.a_star
+        bw = map(bel -> branch_weight(tab_pomdp, obs, optimal_act, bel), samples)
+        push!(BW, bw)
+    end
+    return BW
+end
+
+function get_branch_actobs(actions_pomdp, AO_next, obs, programs, belief_samples)
+    AO = []
+    for (lp, samples) in zip(programs, belief_samples)
+        optimal_act = actions_pomdp[lp.a_star]
+        push!(AO, [vcat((optimal_act, obs), AO_next) for _ in 1:length(samples)])
+    end
+    return AO
+end
+
+function branch_weight(tab_pomdp, o, a, b)
+    # Compute p(o|a,b) = sum_s sum_s' O(o|a,s') T(s'|a,s) b(s)
+    Tb = tab_pomdp.T[:,a,:] * reshape(b, :, 1)
+    return dot(tab_pomdp.O[o,a,:], Tb)
+end
+
+function root_belief(β_levels, lvl; normalize_to_1=true)
+    res = weighted_column_sum(β_levels[lvl].W, hcat(β_levels[lvl].β...));
+    return normalize_to_1 ? normalize(res) : res
+end
+
+function top_likely_init_belief(β_levels, lvl)
+    prob, elem = findmax(β_levels[lvl].W)
+    bel = (β_levels[lvl].β)[elem]
+    return bel, prob
+end
+
+function top_likely_init_beliefs(β_levels, lvl, k)
+    elems, probs =  maxk(β_levels[lvl].W, k)
+    bels = (β_levels[lvl].β)[elems]
+    aos = (β_levels[lvl].ao)[elems]
+    return bels, probs, aos
 end
