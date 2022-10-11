@@ -1,4 +1,5 @@
 include("VertexPivot.jl")
+include("utils.jl")
 
 using Suppressor
 using JuMP
@@ -6,28 +7,6 @@ using LinearAlgebra: Diagonal, dot, rank
 using Random
 
 Random.seed!(1)
-
-create_T_bar(tab_pomdp, act) = tab_pomdp.T[:, act, :]
-create_O_bar(tab_pomdp, obs) = Diagonal(tab_pomdp.O[obs, 1, :])
-
-add_columns = hcat
-add_rows = vcat
-
-fix_overflow!(val, ϵ=1e-10) = val[val .< ϵ] .= 0.0
-
-function zeros_except(N::Int, idx::Int)
-    res = zeros(N,)
-    res[idx] = 1.0
-    return res
-end
-
-function normalize(A::AbstractVector)
-    return A ./ sum(A)
-end
-
-function normalize!(A::AbstractVector)
-    A[:] .= A ./ sum(A)
-end
 
 function obj_func(O, T, β_t, x)
     no_of_states = length(x)
@@ -40,6 +19,7 @@ end
 function validate(O, T, Γ, αj, β_t, LP_Solver)
     no_of_states = length(β_t)
     eps_var = 1.0
+    z_val = 0.75
 
     # @variable(model, x[1:no_of_states])
     # @variable(model, u[1:no_of_states])
@@ -57,7 +37,7 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
 
     model = Model(LP_Solver)
 
-    no_of_LP_vars = 4 * no_of_states + 4
+    no_of_LP_vars = 4 * no_of_states + 4 + 1
     @variable(model, X[1 : no_of_LP_vars])
     
     zr = zeros(1, no_of_states);
@@ -122,6 +102,15 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
     
     A, b = add_nullspace_constraint(A, b, O, T);
     
+
+    # Min prob of (a,o) reachability constraint
+    Oa = reshape(diag(O), 1, :)
+    A = add_columns(A, zeros(size(A, 1), 1));
+    item = Oa*T - z_val*vn
+    A = add_rows(A, [item zr 0 0 0 0 zr zr -1]);
+    b = add_rows(b, [0])
+
+
     c = zeros(1, no_of_LP_vars);
     c[no_of_states+1 : 2*no_of_states] .= 1
     @objective(model, Min, dot(c,X))
@@ -152,9 +141,11 @@ function validate_all_actions(tab_pomdp, obs_id, policy, β_next, LP_Solver)
 
     res = @suppress map(αj->validate(O, create_T_bar(tab_pomdp, policy.action_map[αj]), Γ, αj, β_next, LP_Solver), 1:length(Γ))
     
-
-    J_min = minimum(getindex.(res, Ref(2)))   # index=2 is the obj value
-    a_star = getindex.(res, Ref(2)) .== J_min
+    
+    # J_min = minimum(getindex.(res, Ref(2)))   # index=2 is the obj value
+    resRef2 = round.(getindex.(res, Ref(2)); digits=4)
+    J_min = minimum(resRef2)   # index=2 is the obj value, rounded-off to 4 decimals 
+    a_star = resRef2 .== J_min
     a_star_idxs = (1:length(a_star))[a_star]
 
     X_inits = getindex.(res[a_star], Ref(1))    # index=1 is the x value
@@ -177,21 +168,27 @@ function validate_all_actions(tab_pomdp, obs_id, policy, β_next, LP_Solver)
     return LPs
 end
 
-function samples_from_belief_subspace(LP, belief_N)
+function samples_from_belief_subspace(LP, tab_pomdp, obs_id, belief_N)
     X_stars = reshape(Float64[], LP.no_of_states, 0)
+    X_stars_rchblty_probs = Float64[]
     samples = []
 
     for B in LP.vertices
         x_star = extract_vertex(B, LP)[1:LP.no_of_states]
         fix_overflow!(x_star)
-        X_stars = add_columns(X_stars, normalize(x_star))
+        normalize!(x_star)
+        X_stars = add_columns(X_stars, x_star)
+        # @show obs_id
+        push!(X_stars_rchblty_probs, branch_weight(tab_pomdp, obs_id, LP.a_star, x_star))
     end
+    # @show X_stars_rchblty_probs
 
     n = size(X_stars, 2)
-    dirc = Dirichlet(ones(n))
     if n==1
         return [vec(X_stars)]
     else
+        # dirc = Dirichlet(ones(n))
+        dirc = Dirichlet(X_stars_rchblty_probs)
         for _ in 1:belief_N
             w = normalize(rand(dirc))
             s = X_stars * w

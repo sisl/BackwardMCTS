@@ -64,8 +64,9 @@ function run_fwd_simulation_sao(pomdp, policy, b0, max_t; verbose=false)
     return push!(simulated_s, simulated_final_s), simulated_ao
 end
 
-function batch_fwd_simulations(pomdp, policy, max_t, epochs, des_final_state, b0_testing, des_ao_traj; verbose=false)
+function batch_fwd_simulations(pomdp, policy, epochs, des_final_state, b0_testing, des_ao_traj; max_t = length(des_ao_traj), verbose=false)
     init_states = []
+    @show max_t
     b0 = DiscreteBelief(pomdp, states(pomdp), b0_testing)
     for e = Tqdm(1:epochs)
         sim_s, sim_ao = run_fwd_simulation_sao(pomdp, policy, b0, max_t; verbose=verbose)
@@ -88,5 +89,5 @@ function parse_batch_fwd_simulations(pomdp, init_states)
 end
 
 function convert_des_ao_traj(pomdp, des_ao_traj)
-    return [(item[1], (states(pomdp))[item[2]]) for item in des_ao_traj]
+    return [(item[1], (states(pomdp))[item[2]]) for item in des_ao_traj if item[1] != :end]
 end

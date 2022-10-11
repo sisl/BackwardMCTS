@@ -9,11 +9,11 @@ using QMDP
 LP_Solver = Gurobi.Optimizer
 
 # Create pomdp
-pomdp = SimpleGridWorldPOMDP(size=(4,4),
+pomdp = SimpleGridWorldPOMDP(size=(6,6),
                             rewards=Dict(GWPos(2,3)=>-10.0, GWPos(3,1)=>+25.0)
                             ,
-                            tprob = 0.7,
-                            oprob = 0.8)
+                            tprob = 0.90,
+                            oprob = 0.90)
 
 tab_pomdp = tabulate(pomdp)
 no_of_actions = length(actions(pomdp))
@@ -28,7 +28,7 @@ policy = solve(solver, tab_pomdp)
 β_final = zeros(no_of_states,)
 β_final[3] = 1.0
 
-max_t = 2
+max_t = 6
 β_levels = backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver)
 
 # lvl = 1;
@@ -38,6 +38,7 @@ max_t = 2
 
 k = 1;
 top_bels, top_probs, top_aos = top_likely_init_beliefs(β_levels, max_t, k)
+@show max_t
 @show top_probs[end]
 @show top_bels[end]
 @show top_aos[end]
@@ -47,10 +48,3 @@ reshape_GW(top_bels[end])
 # lvl = 1;
 # init_states = root_belief(β_levels, lvl; normalize_to_1 = true);
 # reshape_GW(init_states)
-
-
-# INFO:
-# 0. Use matrix form of the same problem
-# 1. Get vertices
-# 2. Sample from belief space
-# 3. Branch out to these sampled beliefs

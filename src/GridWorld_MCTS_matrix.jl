@@ -33,8 +33,9 @@ struct βts_and_weights
 end
 
 function backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver)
-    belief_N = 25
-    obs_N = 5
+    obs_N    = 1
+    belief_N = 1
+
     tab_pomdp = tabulate(pomdp)
     actions_pomdp = actions(pomdp)
 
@@ -61,7 +62,9 @@ function backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver)
             # Get previous beliefs, given the sampled observation and optimal policy
             ## This part is backwards in time (from leaf to root)
             LPs = map(obs_id -> validate_all_actions(tab_pomdp, obs_id, policy, β_next, LP_Solver), obs_samples);
-            S = map(LP -> samples_from_belief_subspace.(LP, Ref(belief_N)), LPs);
+            # S = map(LP -> samples_from_belief_subspace.(LP, Ref(belief_N)), LPs);
+            S = map(item -> samples_from_belief_subspace.(item[2], Ref(tab_pomdp), Ref(obs_samples[item[1]]), Ref(belief_N)), enumerate(LPs));  # item := (idx, LP) 
+
 
             # Compute weights for branches
             ## This part is forward in time (from root to leaf)
@@ -127,7 +130,7 @@ end
 
 function branch_weight(tab_pomdp, o, a, b)
     # Compute p(o|a,b) = sum_s sum_s' O(o|a,s') T(s'|a,s) b(s)
-    Tb = tab_pomdp.T[:,a,:] * reshape(b, :, 1)
+    Tb = create_T_bar(tab_pomdp, a) * reshape(b, :, 1)
     return dot(tab_pomdp.O[o,a,:], Tb)
 end
 
