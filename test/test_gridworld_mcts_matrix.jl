@@ -12,8 +12,8 @@ LP_Solver = Gurobi.Optimizer
 pomdp = SimpleGridWorldPOMDP(size=(6,6),
                             rewards=Dict(GWPos(2,3)=>-10.0, GWPos(3,1)=>+25.0)
                             ,
-                            tprob = 0.8,
-                            oprob = 0.7)
+                            tprob = 0.9,
+                            oprob = 0.9)
 
 tab_pomdp = tabulate(pomdp)
 no_of_actions = length(actions(pomdp))
@@ -28,7 +28,7 @@ policy = solve(solver, tab_pomdp)
 β_final = zeros(no_of_states,)
 β_final[3] = 1.0
 
-max_t = 6
+max_t = 4
 β_levels = backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver)
 
 k = 1;
