@@ -19,8 +19,7 @@ end
 function validate(O, T, Γ, αj, β_t, LP_Solver)
     no_of_states = length(β_t)
     eps_var = 1.0
-    z_val = 0.5
-
+    
     # @variable(model, x[1:no_of_states])
     # @variable(model, u[1:no_of_states])
     # @variable(model, y)
@@ -34,9 +33,10 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
 
     # @variable(model, m[1:no_of_states])
     # @variable(model, n[1:no_of_states])
-
-    model = Model(LP_Solver)
-
+    
+    model = Model(LP_Solver.model)
+    z_val = LP_Solver.z_val
+    
     no_of_LP_vars = 4 * no_of_states + 4 + 1
     @variable(model, X[1 : no_of_LP_vars])
     

@@ -39,6 +39,8 @@ function reshape_GW(A::AbstractVector)
 end
 
 reshape_GW(A::AbstractMatrix) = reshape_GW(vec(A))
+reshape_GW(A::Nothing) = nothing
+
 
 """
 Converts a `SimpleGridWorldPOMDP` object to a `POMDPModels.TabularPOMDP` object.

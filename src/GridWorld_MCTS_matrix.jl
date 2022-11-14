@@ -149,6 +149,10 @@ function top_likely_init_belief(β_levels, lvl)
 end
 
 function top_likely_init_beliefs(β_levels, lvl, k)
+    if isempty(β_levels[lvl].W)
+        @warn "Your `z_val` is too high, no solution found."
+        return [nothing], [nothing], [nothing]
+    end
     elems, probs =  maxk(β_levels[lvl].W, k)
     bels = (β_levels[lvl].β)[elems]
     aos = (β_levels[lvl].ao)[elems]

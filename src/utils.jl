@@ -1,5 +1,7 @@
 using LinearAlgebra: Diagonal, dot, rank, diag
 
+include("argparse_utils.jl")
+
 create_T_bar(tab_pomdp, act) = tab_pomdp.T[:, act, :]
 create_O_bar(tab_pomdp, obs) = Diagonal(tab_pomdp.O[obs, 1, :])
 
@@ -20,4 +22,9 @@ end
 
 function normalize!(A::AbstractVector)
     A[:] .= A ./ sum(A)
+end
+
+struct LP_Solver_config 
+    model
+    z_val
 end
