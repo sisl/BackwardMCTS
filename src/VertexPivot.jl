@@ -1,4 +1,4 @@
-remove(col, item) = col[col .!= item]
+remove(list, item) = list[list .!= item]
 
 function remove_redundant_col(A, B, rank_des)
     for idx in reverse(B)  #keep reverse
@@ -135,7 +135,7 @@ function get_polygon_vertices!(B, LP)
     possible_pivots = possible_pivots[possible_pivots .< no_of_states]
     
     for q in possible_pivots
-        edge_transitions!(LP, B, q) # --> TODO: This should call itself recursively
+        edge_transitions!(LP, B, q)
     end
 
 end

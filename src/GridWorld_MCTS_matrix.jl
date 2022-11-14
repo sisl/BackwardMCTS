@@ -32,9 +32,9 @@ struct βts_and_weights
     ao
 end
 
-function backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver)
-    obs_N    = 1
-    belief_N = 1
+function backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver; obs_N=1, belief_N=1)
+    # obs_N    = 1
+    # belief_N = 1
 
     tab_pomdp = tabulate(pomdp)
     actions_pomdp = actions(pomdp)
@@ -129,9 +129,12 @@ function get_branch_actobs(actions_pomdp, AO_next, obs, programs, belief_samples
 end
 
 function branch_weight(tab_pomdp, o, a, b)
-    # Compute p(o|a,b) = sum_s sum_s' O(o|a,s') T(s'|a,s) b(s)
-    Tb = create_T_bar(tab_pomdp, a) * reshape(b, :, 1)
-    return dot(tab_pomdp.O[o,a,:], Tb)
+    ## Compute p(o|a,b) = sum_s sum_s' O(o|a,s') T(s'|a,s) b(s)
+    # Tb = create_T_bar(tab_pomdp, a) * reshape(b, :, 1)
+    # return dot(tab_pomdp.O[o,a,:], Tb)
+    Oa = tab_pomdp.O[o,a,:]
+    T = create_T_bar(tab_pomdp, a)
+    return dot(Oa' * T, b)
 end
 
 function root_belief(β_levels, lvl; normalize_to_1=true)

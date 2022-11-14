@@ -19,7 +19,7 @@ end
 function validate(O, T, Γ, αj, β_t, LP_Solver)
     no_of_states = length(β_t)
     eps_var = 1.0
-    z_val = 0.75
+    z_val = 0.7
 
     # @variable(model, x[1:no_of_states])
     # @variable(model, u[1:no_of_states])
@@ -188,7 +188,8 @@ function samples_from_belief_subspace(LP, tab_pomdp, obs_id, belief_N)
         return [vec(X_stars)]
     else
         # dirc = Dirichlet(ones(n))
-        dirc = Dirichlet(X_stars_rchblty_probs)
+        denom = minimum(X_stars_rchblty_probs)
+        dirc = Dirichlet(X_stars_rchblty_probs./denom)
         for _ in 1:belief_N
             w = normalize(rand(dirc))
             s = X_stars * w
