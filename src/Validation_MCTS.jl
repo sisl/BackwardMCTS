@@ -2,7 +2,7 @@ include("gridworldpomdp.jl")
 
 using POMDPs
 using POMDPPolicies: solve
-using BeliefUpdaters: DiscreteBelief
+using BeliefUpdaters: DiscreteBelief, NothingUpdater
 using POMDPSimulators: stepthrough, updater
 using QMDP
 using ProgressBars
@@ -17,40 +17,11 @@ function optimal_action_idx(Γ, b)
     return rand((intrv)[opt_acts])
 end
 
-function get_concentrated_rand_init_belief(pomdp)
-    no_of_states = length(states(pomdp))
-    b0 = zeros(no_of_states)
-    i = rand(1:no_of_states-1)
-    b0[i] = 1.0
-    return DiscreteBelief(pomdp, states(pomdp), b0)
-end
-
-function run_fwd_simulation(pomdp, policy, b0, max_t; verbose=false)
-    beliefs = []
-    states = []
-    observations = []
-    actions = []
-    rewards = []
-    for (s,a,o,r,b) in stepthrough(pomdp, policy, updater(policy), b0, rand(b0), "s,a,o,r,b", max_steps=max_t)
-        if verbose
-            println("In state $s")
-            println("took action $a")
-            println("received observation $o and reward $r")
-            println("and belief was $(b.b)")
-        end
-        push!(states, s)
-        push!(actions, a)
-        push!(observations, o)
-        push!(rewards, r)
-        push!(beliefs, b.b)
-    end
-    return states, beliefs, observations, actions, rewards
-end
-
-function run_fwd_simulation_sao(pomdp, policy, b0, max_t; verbose=false)
+function run_fwd_simulation_sao(pomdp, b0, des_ao_traj, max_t; verbose=false)
     simulated_s = []
     simulated_ao = []
     simulated_final_s = nothing
+    policy = DefinedPolicy(des_ao_traj)
     for (s,sp,a,o,r) in stepthrough(pomdp, policy, updater(policy), b0, rand(b0), "s,sp,a,o,r", max_steps=max_t)
         if verbose
             println("In state $s")
@@ -64,12 +35,13 @@ function run_fwd_simulation_sao(pomdp, policy, b0, max_t; verbose=false)
     return push!(simulated_s, simulated_final_s), simulated_ao
 end
 
-function batch_fwd_simulations(pomdp, policy, epochs, des_final_state, b0_testing, des_ao_traj; max_t = length(des_ao_traj), verbose=false)
+function batch_fwd_simulations(pomdp, epochs, des_final_state, b0_testing, des_ao_traj; max_t = length(des_ao_traj), verbose=false)
     init_states = []
     @show max_t
     b0 = DiscreteBelief(pomdp, states(pomdp), b0_testing)
+
     for e = Tqdm(1:epochs)
-        sim_s, sim_ao = run_fwd_simulation_sao(pomdp, policy, b0, max_t; verbose=verbose)
+        sim_s, sim_ao = run_fwd_simulation_sao(pomdp, b0, des_ao_traj, max_t; verbose=verbose)
         if length(sim_s)==max_t+1 && sim_s[end]==des_final_state && sim_s[1]!=des_final_state && sim_ao==des_ao_traj
             push!(init_states, sim_s[1])
         end
@@ -91,3 +63,20 @@ end
 function convert_des_ao_traj(pomdp, des_ao_traj)
     return [(item[1], (states(pomdp))[item[2]]) for item in des_ao_traj if item[1] != :end]
 end
+
+
+mutable struct DefinedPolicy <: Policy
+    action_sequence::AbstractVector
+    current_index::Int
+end
+
+# The constructor below should be used to create the policy so that the action space is initialized correctly
+DefinedPolicy(action_sequence::AbstractVector) = DefinedPolicy(action_sequence, 0)
+
+## policy execution ##
+function POMDPs.action(policy::DefinedPolicy, s)
+    policy.current_index += 1
+    return policy.action_sequence[policy.current_index][1]  # remove the [1] if `action_sequence` is a flat vector.
+end
+
+POMDPs.updater(::DefinedPolicy) = NothingUpdater()

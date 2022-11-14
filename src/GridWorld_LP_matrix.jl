@@ -19,7 +19,7 @@ end
 function validate(O, T, Γ, αj, β_t, LP_Solver)
     no_of_states = length(β_t)
     eps_var = 1.0
-    z_val = 0.7
+    z_val = 0.5
 
     # @variable(model, x[1:no_of_states])
     # @variable(model, u[1:no_of_states])
@@ -145,6 +145,11 @@ function validate_all_actions(tab_pomdp, obs_id, policy, β_next, LP_Solver)
     # J_min = minimum(getindex.(res, Ref(2)))   # index=2 is the obj value
     resRef2 = round.(getindex.(res, Ref(2)); digits=4)
     J_min = minimum(resRef2)   # index=2 is the obj value, rounded-off to 4 decimals 
+
+    if J_min == Inf
+        return []
+    end
+
     a_star = resRef2 .== J_min
     a_star_idxs = (1:length(a_star))[a_star]
 
