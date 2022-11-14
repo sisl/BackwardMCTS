@@ -32,7 +32,7 @@ struct βts_and_weights
     ao
 end
 
-function backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver; obs_N=1, belief_N=1)
+function backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver, obs_N=1, belief_N=1)
     # obs_N    = 1
     # belief_N = 1
 

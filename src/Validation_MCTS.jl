@@ -37,7 +37,6 @@ end
 
 function batch_fwd_simulations(pomdp, epochs, des_final_state, b0_testing, des_ao_traj; max_t = length(des_ao_traj), verbose=false)
     init_states = []
-    @show max_t
     b0 = DiscreteBelief(pomdp, states(pomdp), b0_testing)
 
     for e = Tqdm(1:epochs)
@@ -47,8 +46,8 @@ function batch_fwd_simulations(pomdp, epochs, des_final_state, b0_testing, des_a
         end
     end
     percentage = round(length(init_states) / epochs * 100; digits=3)
-    println("Found $(length(init_states))/$epochs ($(percentage)%) corresponding init states.")
-    return init_states
+    if verbose println("Found $(length(init_states))/$epochs ($(percentage)%) corresponding init states.") end
+    return init_states, percentage/100
 end
 
 function parse_batch_fwd_simulations(pomdp, init_states)

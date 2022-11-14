@@ -14,7 +14,7 @@ function parse_commandline()
 
         "--z_val"
             arg_type = Float64
-            default = 0.5
+            default = 0.8
 
         "--timesteps"
             arg_type = Int
@@ -27,6 +27,10 @@ function parse_commandline()
         "--belief_N"
             arg_type = Int
             default = 1
+
+        "--epochs"
+            arg_type = Int
+            default = 100_000
 
         "--noise_seed"
             arg_type = Int
