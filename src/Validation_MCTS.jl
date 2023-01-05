@@ -35,13 +35,15 @@ function run_fwd_simulation_sao(pomdp, b0, des_ao_traj, max_t; verbose=false)
     return push!(simulated_s, simulated_final_s), simulated_ao
 end
 
-function batch_fwd_simulations(pomdp, epochs, des_final_state, b0_testing, des_ao_traj; max_t = length(des_ao_traj), verbose=false)
+check_ao_trajs(sim_ao, des_ao_traj, lower_bound) = !lower_bound ? sim_ao==des_ao_traj : all(getindex.(sim_ao, Ref(1)) .== getindex.(des_ao_traj, Ref(1)))
+
+function batch_fwd_simulations(pomdp, epochs, des_final_state, b0_testing, des_ao_traj; lower_bound=false, verbose=false, max_t = length(des_ao_traj))
     init_states = []
     b0 = DiscreteBelief(pomdp, states(pomdp), b0_testing)
 
     for e = Tqdm(1:epochs)
         sim_s, sim_ao = run_fwd_simulation_sao(pomdp, b0, des_ao_traj, max_t; verbose=verbose)
-        if length(sim_s)==max_t+1 && sim_s[end]==des_final_state && sim_s[1]!=des_final_state && sim_ao==des_ao_traj
+        if length(sim_s)==max_t+1 && sim_s[end]==des_final_state && sim_s[1]!=des_final_state && check_ao_trajs(sim_ao, des_ao_traj, lower_bound)
             push!(init_states, sim_s[1])
         end
     end
@@ -81,22 +83,21 @@ end
 POMDPs.updater(::DefinedPolicy) = NothingUpdater()
 
 
-function validation_probs_and_scores(β_levels, pomdp, max_t, des_final_state, CMD_ARGS)
+function validation_probs_and_scores(β_levels, pomdp, max_t, des_final_state, CMD_ARGS; lower_bound=false, verbose=false)
     probs = []
     scores = []
-    items = length(β_levels[max_t].W)
+    items = length(β_levels[max_t].ao)
 
     tab_pomdp = tabulate(pomdp)
     acts = collect(actions(pomdp))
 
     for i in 1:items
         bel  = β_levels[max_t].β[i]
-        prob = β_levels[max_t].W[i]
         aos  = β_levels[max_t].ao[i]
     
-        _, score = batch_fwd_simulations(pomdp, CMD_ARGS[:epochs], des_final_state, bel, convert_des_ao_traj(pomdp, aos));
-        # prob = round(prob; digits=5)
         prob = bayesian_prob(tab_pomdp, acts, bel, aos)
+        # prob = bayesian_prob_summed(tab_pomdp, acts, bel, aos)
+        _, score = batch_fwd_simulations(pomdp, CMD_ARGS[:epochs], des_final_state, bel, convert_des_ao_traj(pomdp, aos), lower_bound=lower_bound, verbose=verbose);
 
         println("  Item:\t\t  $(i) of $(items) \n  Approx Prob:\t  $(prob) \n  Lhood Score:\t  $(score)")
         push!(probs, prob)
@@ -121,14 +122,28 @@ function bayesian_prob(tab_pomdp, acts, bel, aos)
     return round(prob; digits=5)
 end
 
-function validate_bayesian_probs(β_levels, pomdp, max_t)
-    probs = []
-    items = length(β_levels[max_t].W)
-    for i in 1:items
-        bel  = β_levels[max_t].β[i]
-        aos  = β_levels[max_t].ao[i]
-
-        push!(probs, bayesian_prob(tab_pomdp, acts, bel, aos))
+function bayesian_prob_summed(tab_pomdp, acts, bel, aos)
+    prob = 1.0
+    for (a_sym, o) in aos[1:end-1]
+        a = findfirst(x->x==a_sym, acts)
+        bp = bayesian_next_belief(tab_pomdp, o, a, bel)
+        prob *= branch_weight_summed(tab_pomdp, o, a, bel, bp)
+        bel = bp
     end
-    return probs
+    return round(prob; digits=5)
+end
+
+function branch_weight_summed(tab_pomdp, o, a, b, bp)
+    ## Compute p(bp|b,a) = sum_o p(bp|b,a,o) p(o|b,a)
+    Oa = tab_pomdp.O[o,a,:]
+    T = create_T_bar(tab_pomdp, a)
+
+    res = 0
+    for o = 1:size(T, 1)
+        ddirac = (bp == bayesian_next_belief(tab_pomdp, o, a, b))
+        res += Int(ddirac) * branch_weight(tab_pomdp, o, a, b)
+        if ddirac @show o end
+    end
+    @show "returned"
+    return res
 end

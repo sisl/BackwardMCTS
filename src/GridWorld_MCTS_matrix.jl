@@ -26,9 +26,8 @@ function maxk(A, k)
     return idx[elems], vals[elems]
 end
 
-struct βts_and_weights
+struct βts_and_history
     β
-    W
     ao
 end
 
@@ -40,48 +39,51 @@ function backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver, obs_N=1, beli
     actions_pomdp = actions(pomdp)
 
     β_levels = Dict()
-    push!(β_levels, 0 => βts_and_weights([β_final], [1.0], [(:end, -1)]))
+    push!(β_levels, 0 => βts_and_history([β_final], [(:end, -1)]))
 
     for t = Tqdm(1:max_t)
 
         lvl = β_levels[t-1]
         β = []
-        W = []
+        # W = []
         AO = []
         
-        for l = Tqdm(1:length(lvl.W))
+        for l = Tqdm(1:length(lvl.ao))
             β_next = lvl.β[l]
-            W_next = lvl.W[l]
+            # W_next = lvl.W[l]
             AO_next = lvl.ao[l]
 
             # Sample possible observations (with weights)
             nonzero_weights, nonzero_states = nonzero(β_next)
             obs_weights = weighted_column_sum(nonzero_weights, tab_pomdp.O[:, end, nonzero_states])
-            obs_samples, obs_weights = maxk(obs_weights, obs_N)
+            
+            if t==1  # enforce fully-observable for final (sink) state
+                obs_samples, obs_weights = maxk(obs_weights, 1)
+            else
+                obs_samples, obs_weights = maxk(obs_weights, obs_N)
+            end
 
-            # Get previous beliefs, given the sampled observation and optimal policy
             ## This part is backwards in time (from leaf to root)
+            # Get previous beliefs, given the sampled observation and optimal policy
             LPs = map(obs_id -> validate_all_actions(tab_pomdp, obs_id, policy, β_next, LP_Solver), obs_samples);
-            # S = map(LP -> samples_from_belief_subspace.(LP, Ref(belief_N)), LPs);
             S = map(item -> samples_from_belief_subspace.(item[2], Ref(tab_pomdp), Ref(obs_samples[item[1]]), Ref(belief_N)), enumerate(LPs));  # item := (idx, LP) 
 
-
-            # Compute weights for branches
             ## This part is forward in time (from root to leaf)
+            # Compute weights for branches
             # Weights = get_branch_weights.(Ref(tab_pomdp), obs_samples, LPs, S)
-            Weights = get_branch_weights_v2.(Ref(tab_pomdp), obs_samples, obs_weights, LPs, S)
+            # Weights = get_branch_weights_v2.(Ref(tab_pomdp), obs_samples, obs_weights, LPs, S)
             ActObs = get_branch_actobs.(Ref(actions_pomdp), Ref(AO_next), obs_samples, LPs, S)
 
             S = flatten_twice(S);
-            Weights = flatten_twice(Weights);
+            # Weights = flatten_twice(Weights);
             ActObs = flatten_twice(ActObs);
 
             append!(β, S)
-            append!(W, Weights * W_next)
+            # append!(W, Weights * W_next)
             append!(AO, ActObs)
         end
         
-        push!(β_levels, t => βts_and_weights(β, W, AO))
+        push!(β_levels, t => βts_and_history(β, AO))
     end
     return β_levels
 end

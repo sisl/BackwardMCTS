@@ -16,6 +16,10 @@ function parse_commandline()
             arg_type = Float64
             default = 0.8
 
+        "--c_UCT"
+            arg_type = Float64
+            default = 1.0
+
         "--timesteps"
             arg_type = Int
             default = 3
@@ -39,7 +43,7 @@ function parse_commandline()
         "--savename"
             help = "Save name of file for results. Any valid String accepted. Pass no arguments to skip saving."
             arg_type = String
-            default = nothing
+            default = "anil_001.csv"
     end
 
     return parse_args(s, as_symbols=true)
