@@ -5,8 +5,16 @@ rest:
 my_string: foo bar
 
 
-gridsize_range: [4, 5, 6]
-t_and_o_probs_range: [1.0, 0.8, 0.6]
-z_val_range: [0.7, 0.6, 0.5]
+# gridsize_range: [4, 5, 6]
+# t_and_o_probs_range: [1.0, 0.8, 0.6]
+# z_val_range: [0.7, 0.6, 0.5]
 
+
+gridsize_range: [6]
+t_and_o_probs_range: [0.9, 0.8, 0.7]
+z_val_range: [0.7, 0.6, 0.5, 0.4]
 timesteps_range: [1, 2, 3, 4, 5, 6]
+
+obs_N: 2
+belief_N: 5
+savename: Nov27.csv

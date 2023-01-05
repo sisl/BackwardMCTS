@@ -57,7 +57,7 @@ function backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver, obs_N=1, beli
             # Sample possible observations (with weights)
             nonzero_weights, nonzero_states = nonzero(β_next)
             obs_weights = weighted_column_sum(nonzero_weights, tab_pomdp.O[:, end, nonzero_states])
-            obs_samples, _ = maxk(obs_weights, obs_N)
+            obs_samples, obs_weights = maxk(obs_weights, obs_N)
 
             # Get previous beliefs, given the sampled observation and optimal policy
             ## This part is backwards in time (from leaf to root)
@@ -68,7 +68,8 @@ function backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver, obs_N=1, beli
 
             # Compute weights for branches
             ## This part is forward in time (from root to leaf)
-            Weights = get_branch_weights.(Ref(tab_pomdp), obs_samples, LPs, S)
+            # Weights = get_branch_weights.(Ref(tab_pomdp), obs_samples, LPs, S)
+            Weights = get_branch_weights_v2.(Ref(tab_pomdp), obs_samples, obs_weights, LPs, S)
             ActObs = get_branch_actobs.(Ref(actions_pomdp), Ref(AO_next), obs_samples, LPs, S)
 
             S = flatten_twice(S);
@@ -115,6 +116,16 @@ function get_branch_weights(tab_pomdp, obs, programs, belief_samples)
         optimal_act = lp.a_star
         bw = map(bel -> branch_weight(tab_pomdp, obs, optimal_act, bel), samples)
         push!(BW, bw)
+    end
+    return BW
+end
+
+function get_branch_weights_v2(tab_pomdp, obs, obsW, programs, belief_samples)
+    BW = []
+    for (lp, samples) in zip(programs, belief_samples)
+        optimal_act = lp.a_star
+        bw = map(bel -> branch_weight(tab_pomdp, obs, optimal_act, bel), samples)
+        push!(BW, obsW * bw)
     end
     return BW
 end

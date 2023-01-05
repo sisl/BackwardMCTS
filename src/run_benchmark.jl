@@ -38,14 +38,10 @@ max_t = CMD_ARGS[:timesteps]
 LP_Solver = LP_Solver_config(Gurobi.Optimizer, CMD_ARGS[:z_val])
 β_levels = backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver, CMD_ARGS[:obs_N], CMD_ARGS[:belief_N])
 
+# Validate BMCTS nodes
+probs, scores = validation_probs_and_scores(β_levels, pomdp, max_t, des_final_state, CMD_ARGS)
 
-# Validate BMCTS entries
-for i in 1:length(β_levels[max_t].W)
-    bel  = β_levels[max_t].β[i]
-    prob = β_levels[max_t].W[i]
-    aos  = β_levels[max_t].ao[i]
+# Dump results to file
+csvdump(probs, scores, CMD_ARGS)
 
-    _, score = batch_fwd_simulations(pomdp, CMD_ARGS[:epochs], des_final_state, bel, convert_des_ao_traj(pomdp, aos));
-    prob = round(prob; digits=5)
-    println("  Approx Prob:\t  $(prob) \n  Lhood Score:\t  $(score)")
-end
+@info "Done!"

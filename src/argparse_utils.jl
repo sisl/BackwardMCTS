@@ -18,15 +18,15 @@ function parse_commandline()
 
         "--timesteps"
             arg_type = Int
-            default = 4
+            default = 3
 
         "--obs_N"
             arg_type = Int
-            default = 1
+            default = 2
 
         "--belief_N"
             arg_type = Int
-            default = 1
+            default = 10
 
         "--epochs"
             arg_type = Int

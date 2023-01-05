@@ -47,7 +47,7 @@ function batch_fwd_simulations(pomdp, epochs, des_final_state, b0_testing, des_a
     end
     percentage = round(length(init_states) / epochs * 100; digits=3)
     if verbose println("Found $(length(init_states))/$epochs ($(percentage)%) corresponding init states.") end
-    return init_states, percentage/100
+    return init_states, round(percentage/100; digits=5)
 end
 
 function parse_batch_fwd_simulations(pomdp, init_states)
@@ -79,3 +79,56 @@ function POMDPs.action(policy::DefinedPolicy, s)
 end
 
 POMDPs.updater(::DefinedPolicy) = NothingUpdater()
+
+
+function validation_probs_and_scores(β_levels, pomdp, max_t, des_final_state, CMD_ARGS)
+    probs = []
+    scores = []
+    items = length(β_levels[max_t].W)
+
+    tab_pomdp = tabulate(pomdp)
+    acts = collect(actions(pomdp))
+
+    for i in 1:items
+        bel  = β_levels[max_t].β[i]
+        prob = β_levels[max_t].W[i]
+        aos  = β_levels[max_t].ao[i]
+    
+        _, score = batch_fwd_simulations(pomdp, CMD_ARGS[:epochs], des_final_state, bel, convert_des_ao_traj(pomdp, aos));
+        # prob = round(prob; digits=5)
+        prob = bayesian_prob(tab_pomdp, acts, bel, aos)
+
+        println("  Item:\t\t  $(i) of $(items) \n  Approx Prob:\t  $(prob) \n  Lhood Score:\t  $(score)")
+        push!(probs, prob)
+        push!(scores, score)
+    end
+    return probs, scores
+end
+
+function bayesian_next_belief(tab_pomdp, o, a, b)
+    bp = tab_pomdp.O[o, a, :] .* (create_T_bar(tab_pomdp, a) * reshape(b, :, 1))
+    return normalize(vec(bp))
+end
+
+function bayesian_prob(tab_pomdp, acts, bel, aos)
+    prob = 1.0
+    bp = bel
+    for (a_sym, o) in aos[1:end-1]
+        a = findfirst(x->x==a_sym, acts)
+        prob *= branch_weight(tab_pomdp, o, a, bp)
+        bp = bayesian_next_belief(tab_pomdp, o, a, bp)
+    end
+    return round(prob; digits=5)
+end
+
+function validate_bayesian_probs(β_levels, pomdp, max_t)
+    probs = []
+    items = length(β_levels[max_t].W)
+    for i in 1:items
+        bel  = β_levels[max_t].β[i]
+        aos  = β_levels[max_t].ao[i]
+
+        push!(probs, bayesian_prob(tab_pomdp, acts, bel, aos))
+    end
+    return probs
+end
