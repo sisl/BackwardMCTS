@@ -1,8 +1,11 @@
+include("argparse_utils.jl")
+
 using LinearAlgebra: Diagonal, dot, rank, diag
 using Statistics: mean
 using DelimitedFiles
+using ProgressBars
 
-include("argparse_utils.jl")
+Tqdm(obj) = length(obj) == 1 ? obj : ProgressBars.tqdm(obj)
 
 create_T_bar(tab_pomdp, act) = tab_pomdp.T[:, act, :]
 create_O_bar(tab_pomdp, obs) = Diagonal(tab_pomdp.O[obs, 1, :])
@@ -11,8 +14,28 @@ add_columns = hcat
 add_rows = vcat
 
 fix_overflow!(val, ϵ=1e-10) = val[val .< ϵ] .= 0.0
-
 average(A) = length(A) == 0 ? 0.0 : mean(A)
+
+flatten(A) = collect(Iterators.flatten(A))
+flatten_twice(A) = flatten(flatten(A))
+
+function nonzero(A)
+    idx = A .!= 0.0
+    elems = 1:length(A)
+    return A[idx], elems[idx]
+end
+
+function weighted_column_sum(weights, cols)
+    res = (weights .* cols')'
+    return vec(sum(res, dims=2))
+end
+
+function maxk(A, k)
+    idx = partialsortperm(A, 1:k, rev=true)
+    vals = A[idx]
+    elems = (vals .> 0.0)
+    return idx[elems], vals[elems]
+end
 
 function zeros_except(N::Int, idx::Int)
     res = zeros(N,)
@@ -27,6 +50,8 @@ end
 function normalize!(A::AbstractVector)
     A[:] .= A ./ sum(A)
 end
+
+remove(list, item) = list[list .!= item]
 
 function csvdump(probs, scores, CMD_ARGS)
     f = pop!(CMD_ARGS, :savename)

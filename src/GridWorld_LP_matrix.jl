@@ -1,12 +1,10 @@
-include("VertexPivot.jl")
 include("utils.jl")
+include("VertexPivot.jl")
 
 using Suppressor
 using JuMP
 using LinearAlgebra: Diagonal, dot, rank
 using Random
-
-Random.seed!(1)
 
 function obj_func(O, T, β_t, x)
     no_of_states = length(x)
@@ -205,17 +203,6 @@ function samples_from_belief_subspace(LP, tab_pomdp, obs_id, belief_N)
     return samples
 end
 
-function vertices_from_belief_subspace(LP)
-    X_stars = []
-
-    for B in LP.vertices
-        x_star = extract_vertex(B, LP)[1:LP.no_of_states]
-        fix_overflow!(x_star)
-        push!(X_stars, normalize(x_star))
-    end
-
-    return X_stars
-end
 
 function remove_polygon_vertices!(LP, Γ, act)
     @show act

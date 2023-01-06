@@ -1,3 +1,4 @@
+include("utils.jl")
 include("gridworldpomdp.jl")
 
 using POMDPs
@@ -7,14 +8,24 @@ using POMDPSimulators: stepthrough, updater
 using QMDP
 using ProgressBars
 
-Tqdm(obj) = length(obj) == 1 ? obj : ProgressBars.tqdm(obj)
+mutable struct DefinedPolicy <: Policy
+    action_sequence::AbstractVector
+    current_index::Int
+end
 
-function optimal_action_idx(Γ, b)
-    ϵ = 1e-10
-    intrv = 1:length(Γ)
-    utilities = dot.(Γ, Ref(b))
-    opt_acts = map(i -> abs(maximum(utilities) - utilities[i] < ϵ), intrv)
-    return rand((intrv)[opt_acts])
+# The constructor below should be used to create the policy so that the action space is initialized correctly
+DefinedPolicy(action_sequence::AbstractVector) = DefinedPolicy(action_sequence, 0)
+
+## policy execution ##
+function POMDPs.action(policy::DefinedPolicy, s)
+    policy.current_index += 1
+    return policy.action_sequence[policy.current_index][1]  # remove the [1] if `action_sequence` is a flat vector.
+end
+
+POMDPs.updater(::DefinedPolicy) = NothingUpdater()
+
+function convert_des_ao_traj(pomdp, des_ao_traj)
+    return [(item[1], (states(pomdp))[item[2]]) for item in des_ao_traj if item[1] != :end]
 end
 
 function run_fwd_simulation_sao(pomdp, b0, des_ao_traj, max_t; verbose=false)
@@ -51,37 +62,6 @@ function batch_fwd_simulations(pomdp, epochs, des_final_state, b0_testing, des_a
     if verbose println("Found $(length(init_states))/$epochs ($(percentage)%) corresponding init states.") end
     return init_states, round(percentage/100; digits=5)
 end
-
-function parse_batch_fwd_simulations(pomdp, init_states)
-    no_of_states = length(states(pomdp))
-    S = zeros(no_of_states)
-    for item in Tqdm(stateindex.(Ref(pomdp), init_states))
-        S[item] += 1
-    end
-    return S ./ sum(S)
-end
-
-function convert_des_ao_traj(pomdp, des_ao_traj)
-    return [(item[1], (states(pomdp))[item[2]]) for item in des_ao_traj if item[1] != :end]
-end
-
-
-mutable struct DefinedPolicy <: Policy
-    action_sequence::AbstractVector
-    current_index::Int
-end
-
-# The constructor below should be used to create the policy so that the action space is initialized correctly
-DefinedPolicy(action_sequence::AbstractVector) = DefinedPolicy(action_sequence, 0)
-
-## policy execution ##
-function POMDPs.action(policy::DefinedPolicy, s)
-    policy.current_index += 1
-    return policy.action_sequence[policy.current_index][1]  # remove the [1] if `action_sequence` is a flat vector.
-end
-
-POMDPs.updater(::DefinedPolicy) = NothingUpdater()
-
 
 function validation_probs_and_scores(β_levels, pomdp, max_t, des_final_state, CMD_ARGS; lower_bound=false, verbose=false)
     probs = []
@@ -120,30 +100,4 @@ function bayesian_prob(tab_pomdp, acts, bel, aos)
         bp = bayesian_next_belief(tab_pomdp, o, a, bp)
     end
     return round(prob; digits=5)
-end
-
-function bayesian_prob_summed(tab_pomdp, acts, bel, aos)
-    prob = 1.0
-    for (a_sym, o) in aos[1:end-1]
-        a = findfirst(x->x==a_sym, acts)
-        bp = bayesian_next_belief(tab_pomdp, o, a, bel)
-        prob *= branch_weight_summed(tab_pomdp, o, a, bel, bp)
-        bel = bp
-    end
-    return round(prob; digits=5)
-end
-
-function branch_weight_summed(tab_pomdp, o, a, b, bp)
-    ## Compute p(bp|b,a) = sum_o p(bp|b,a,o) p(o|b,a)
-    Oa = tab_pomdp.O[o,a,:]
-    T = create_T_bar(tab_pomdp, a)
-
-    res = 0
-    for o = 1:size(T, 1)
-        ddirac = (bp == bayesian_next_belief(tab_pomdp, o, a, b))
-        res += Int(ddirac) * branch_weight(tab_pomdp, o, a, b)
-        if ddirac @show o end
-    end
-    @show "returned"
-    return res
 end

@@ -1,14 +1,4 @@
-remove(list, item) = list[list .!= item]
-
-function remove_redundant_col(A, B, rank_des)
-    for idx in reverse(B)  #keep reverse
-        temp = remove(B, idx)
-        AB = A[:,temp];
-        if rank(AB) == rank_des
-            return temp
-        end
-    end
-end
+include("utils.jl")
 
 mutable struct LinearProgram
     A
@@ -18,6 +8,16 @@ mutable struct LinearProgram
     no_of_states
     vertices
     a_star
+end
+
+function remove_redundant_col(A, B, rank_des)
+    for idx in reverse(B)  #keep reverse
+        temp = remove(B, idx)
+        AB = A[:,temp];
+        if rank(AB) == rank_des
+            return temp
+        end
+    end
 end
 
 function extract_vertex(B, LP)
@@ -171,17 +171,3 @@ function get_valid_partition(A, X)
         return sort(B)
     end
 end
-
-
-# USAGE:
-
-# include("test_gridworld_lp_matrix.jl")    # get A,b,C matrices
-
-# A = collect(A);
-# LP = LinearProgram(A, b, c, JuMP.value.(X), no_of_states, Set());
-# B = get_valid_partition(A, X)
-
-# get_polygon_vertices!(B, LP);
-# x_star = extract_vertex(B, LP)
-
-# β = reshape_GW(x_star[1:no_of_states])
