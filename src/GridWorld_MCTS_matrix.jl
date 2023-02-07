@@ -6,10 +6,6 @@ using DataStructures: DefaultDict
 using StatsBase: sample, Weights
 using Parameters: @with_kw
 
-struct BeliefRecord
-    β
-    ao
-end
 
 @with_kw mutable struct BackwardTree
     AO = Set{Tuple}()                                                   # histories of (a,o,...)
@@ -72,13 +68,20 @@ function sample_node(TREE, t)
 end
 
 function simulate_node!(TREE, Params, β, h)
+    # Save belief, history, and reachability probability
+    p = bayesian_prob(Params[:tab_pomdp], Params[:actions_pomdp], β, h)
+    belRec = BeliefRecord(β, h)
+    if !(p==0.0) && !(belRec in TREE.P)
+        TREE.P[belRec] = p
+    end
+
     # Termination condition due to depth
     if depth(h) == Params[:max_t]
-        return bayesian_prob(Params[:tab_pomdp], Params[:actions_pomdp], β, h)
+        return p
     end
 
     if !(h in TREE.AO)
-        return rollout(β, h, Params)
+        return rollout(TREE, β, h, Params)
     end
 
     obs = sample_obs(β, depth(h), Params[:tab_pomdp])
@@ -104,16 +107,18 @@ function simulate_node!(TREE, Params, β, h)
     TREE.N[aoh] += 1
     TREE.Q[aoh] += (q - TREE.Q[aoh]) / TREE.N[aoh]
 
-    if !(q==0.0)
-        TREE.P[BeliefRecord(β_prev, aoh)] = q
-    end
-
-    # @show aoh
     return q
 end
 
 
-function rollout(β, h, Params)
+function rollout(TREE, β, h, Params)
+    # Save belief, history, and reachability probability
+    p = bayesian_prob(Params[:tab_pomdp], Params[:actions_pomdp], β, h)
+    belRec = BeliefRecord(β, h)
+    if !(p==0.0) && !(belRec in TREE.P)
+        TREE.P[belRec] = p
+    end
+
     # Termination condition due to depth
     if depth(h) == Params[:max_t]
         return bayesian_prob(Params[:tab_pomdp], Params[:actions_pomdp], β, h)
@@ -131,7 +136,7 @@ function rollout(β, h, Params)
 
     β_prev = sample_from_belief_subspace(LP, Params[:tab_pomdp], obs)
     aoh = (Params[:actions_pomdp][act], obs, h...)
-    return rollout(β_prev, aoh, Params)
+    return rollout(TREE, β_prev, aoh, Params)
 end
 
 function rollout_action(h, acts)
@@ -151,7 +156,7 @@ function search!(pomdp, policy, β_final, max_t, LP_Solver, no_of_simulations=5,
     TREE = BackwardTree(max_t)
     push!(TREE, belief=β_final, hist=(:end, -1))
 
-    for t = Tqdm(1:max_t)
+    for t = 1:max_t
         println("  Timestep:\t  $(t) of $(max_t)")
         for m = Tqdm(1:no_of_simulations)
             β, h = sample_node(TREE, t-1)
@@ -260,6 +265,10 @@ function bayesian_prob(tab_pomdp, acts, bel, aos)
         a = findfirst(x->x==a_sym, acts)
         prob *= branch_weight(tab_pomdp, o, a, bp)
         bp = bayesian_next_belief(tab_pomdp, o, a, bp)
+        
+        if prob == 0.0
+            return 0.0
+        end
     end
 
     # for (a_sym, o) in aos[1:end-2]

@@ -78,6 +78,16 @@ function csvdump(probs, scores, CMD_ARGS)
     end
 end
 
+struct LP_Solver_config 
+    model
+    z_threshold
+end
+
+struct BeliefRecord
+    β
+    ao
+end
+
 function zDistribution(z_max = 1.0)
     # Outputs a distributtion whose pdf is proportional to its input.
     # `z_max` is the upper bound to the z-value we know will not output any feasible solution to its corresponding LP.
@@ -86,7 +96,15 @@ function zDistribution(z_max = 1.0)
     return TriangularDist(a, b, c)
 end
 
-struct LP_Solver_config 
-    model
-    z_val
+# Check equality of structs x and y of same type
+@generated function ≂(x, y)
+    if !isempty(fieldnames(x)) && x == y
+        mapreduce(n -> :(x.$n == y.$n), (a,b)->:($a && $b), fieldnames(x))
+    else
+        :(x == y)
+    end
 end
+
+# Check if item is in dict or keys(dict)
+Base.in(item::BeliefRecord, keys::Base.KeySet{BeliefRecord,Dict{BeliefRecord,Float64}}) = any(Ref(item) .≂ keys)
+Base.in(item::BeliefRecord, dict::Dict{BeliefRecord,Float64}) = Base.in(item, keys(dict))

@@ -14,7 +14,7 @@ function obj_func(O, T, β_t, x)
     return sum(res)
 end
 
-function validate(O, T, Γ, αj, β_t, LP_Solver)
+function validate(O, T, Γ, αj, β_t, LP_Solver_model, z_val)
     no_of_states = length(β_t)
     eps_var = 1.0
     
@@ -32,8 +32,7 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
     # @variable(model, m[1:no_of_states])
     # @variable(model, n[1:no_of_states])
     
-    model = Model(LP_Solver.model)
-    z_val = LP_Solver.z_val
+    model = Model(LP_Solver_model)
     
     no_of_LP_vars = 4 * no_of_states + 4 + 1
     @variable(model, X[1 : no_of_LP_vars])
@@ -133,18 +132,35 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
     end
 end
 
-@memoize function validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, αj)
+function validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, αj)
     Γ = policy.alphas
     O = create_O_bar(tab_pomdp, obs_id)
 
-    X, J, A, b, c = @suppress validate(O, create_T_bar(tab_pomdp, policy.action_map[αj]), Γ, αj, β_next, LP_Solver)
-    
-    if J == Inf
+    z_max = 1.0
+    Vals = Dict()
+
+    while z_max > LP_Solver.z_threshold
+        z_val = rand(zDistribution(z_max))
+        X, J, A, b, c = @suppress validate(O, create_T_bar(tab_pomdp, policy.action_map[αj]), Γ, αj, β_next, LP_Solver.model, z_val)
+        push!.(Ref(Vals), (:X, :J, :A, :b, :c).=>(X, J, A, b, c))
+
+        # @show (αj, J)
+        if !(J == Inf)
+            break
+            # @show z_val
+        end
+        z_max = z_val
+    end
+
+    if (Vals[:J] == Inf)
         return nothing
     end
 
-    LP = LinearProgram(A, b, c, X, no_of_states, Set(), αj);
-    B = get_valid_partition(A, X);
+    # @show keys(Vals)
+    # @show Vals[:J]
+    # @warn "aa"
+    LP = LinearProgram(Vals[:A], Vals[:b], Vals[:c], Vals[:X], no_of_states, Set(), αj);
+    B = get_valid_partition(Vals[:A], Vals[:X]);
 
     @suppress get_polygon_vertices!(B, LP);
     @suppress remove_polygon_vertices!(LP, Γ, αj);
