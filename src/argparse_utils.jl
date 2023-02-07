@@ -12,9 +12,9 @@ function parse_commandline()
             arg_type = Float64
             default = 0.8
 
-        "--z_val"
+        "--z_threshold"
             arg_type = Float64
-            default = 0.6
+            default = 0.4
 
         "--no_of_simulations"
             arg_type = Int
@@ -26,7 +26,7 @@ function parse_commandline()
 
         "--timesteps"
             arg_type = Int
-            default = 5
+            default = 4
 
         "--obs_N"
             arg_type = Int

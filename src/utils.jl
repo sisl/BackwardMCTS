@@ -88,10 +88,10 @@ struct BeliefRecord
     ao
 end
 
-function zDistribution(z_max = 1.0)
+function zDistribution(z_min = 0.0, z_max = 1.0)
     # Outputs a distributtion whose pdf is proportional to its input.
     # `z_max` is the upper bound to the z-value we know will not output any feasible solution to its corresponding LP.
-    a = 0.0
+    a = z_min
     b = c = z_max
     return TriangularDist(a, b, c)
 end

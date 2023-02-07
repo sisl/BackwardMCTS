@@ -140,7 +140,7 @@ function validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, �
     Vals = Dict()
 
     while z_max > LP_Solver.z_threshold
-        z_val = rand(zDistribution(z_max))
+        z_val = rand(zDistribution(LP_Solver.z_threshold, z_max))
         X, J, A, b, c = @suppress validate(O, create_T_bar(tab_pomdp, policy.action_map[αj]), Γ, αj, β_next, LP_Solver.model, z_val)
         push!.(Ref(Vals), (:X, :J, :A, :b, :c).=>(X, J, A, b, c))
 
