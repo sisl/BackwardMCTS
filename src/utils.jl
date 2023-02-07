@@ -4,6 +4,8 @@ using LinearAlgebra: Diagonal, dot, rank, diag
 using Statistics: mean
 using DelimitedFiles
 using ProgressBars
+using Memoize
+using Distributions: TriangularDist
 
 Tqdm(obj) = length(obj) == 1 ? obj : ProgressBars.tqdm(obj)
 
@@ -32,6 +34,13 @@ end
 
 function maxk(A, k)
     idx = partialsortperm(A, 1:k, rev=true)
+    vals = A[idx]
+    elems = (vals .> 0.0)
+    return idx[elems], vals[elems]
+end
+
+function maxk(A)
+    idx = sortperm(A, rev=true)
     vals = A[idx]
     elems = (vals .> 0.0)
     return idx[elems], vals[elems]
@@ -67,6 +76,14 @@ function csvdump(probs, scores, CMD_ARGS)
             writedlm(io, hcat([p s], vals), ", ")
         end
     end
+end
+
+function zDistribution(z_max = 1.0)
+    # Outputs a distributtion whose pdf is proportional to its input.
+    # `z_max` is the upper bound to the z-value we know will not output any feasible solution to its corresponding LP.
+    a = 0.0
+    b = c = z_max
+    return TriangularDist(a, b, c)
 end
 
 struct LP_Solver_config 

@@ -133,6 +133,25 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
     end
 end
 
+@memoize function validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, αj)
+    Γ = policy.alphas
+    O = create_O_bar(tab_pomdp, obs_id)
+
+    X, J, A, b, c = @suppress validate(O, create_T_bar(tab_pomdp, policy.action_map[αj]), Γ, αj, β_next, LP_Solver)
+    
+    if J == Inf
+        return nothing
+    end
+
+    LP = LinearProgram(A, b, c, X, no_of_states, Set(), αj);
+    B = get_valid_partition(A, X);
+
+    @suppress get_polygon_vertices!(B, LP);
+    @suppress remove_polygon_vertices!(LP, Γ, αj);
+    return LP
+end
+
+
 function validate_all_actions(tab_pomdp, obs_id, policy, β_next, LP_Solver)
     Γ = policy.alphas
     O = create_O_bar(tab_pomdp, obs_id)
@@ -171,7 +190,38 @@ function validate_all_actions(tab_pomdp, obs_id, policy, β_next, LP_Solver)
     return LPs
 end
 
-function samples_from_belief_subspace(LP, tab_pomdp, obs_id, belief_N)
+function sample_from_belief_subspace(LP, tab_pomdp, obs_id)
+    X_stars = reshape(Float64[], LP.no_of_states, 0)
+    X_stars_rchblty_probs = Float64[]
+    samples = []
+
+    for B in LP.vertices
+        x_star = extract_vertex(B, LP)[1:LP.no_of_states]
+        fix_overflow!(x_star)
+        normalize!(x_star)
+        X_stars = add_columns(X_stars, x_star)
+        # @show obs_id
+        push!(X_stars_rchblty_probs, branch_weight(tab_pomdp, obs_id, LP.a_star, x_star))
+    end
+    # @show X_stars_rchblty_probs
+
+    n = size(X_stars, 2)
+    # @show n
+    if n==1
+        return vec(X_stars)
+    else
+        # dirc = Dirichlet(ones(n))
+        denom = minimum(X_stars_rchblty_probs)
+        # @show X_stars_rchblty_probs
+        # @show X_stars_rchblty_probs/denom
+        dirc = Dirichlet(X_stars_rchblty_probs / denom)
+        w = normalize(rand(dirc))
+        s = X_stars * w
+        return s
+    end
+end
+
+function samples_from_belief_subspace(LP, tab_pomdp, obs_id, belief_N)   # old (also has different input fields)
     X_stars = reshape(Float64[], LP.no_of_states, 0)
     X_stars_rchblty_probs = Float64[]
     samples = []
@@ -204,7 +254,7 @@ function samples_from_belief_subspace(LP, tab_pomdp, obs_id, belief_N)
 end
 
 
-function remove_polygon_vertices!(LP, Γ, act)
+@memoize function remove_polygon_vertices!(LP, Γ, act)
     @show act
     ϵ = 1e-10
     for B in LP.vertices

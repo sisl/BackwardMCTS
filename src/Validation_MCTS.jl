@@ -28,6 +28,19 @@ function convert_des_ao_traj(pomdp, des_ao_traj)
     return [(item[1], (states(pomdp))[item[2]]) for item in des_ao_traj if item[1] != :end]
 end
 
+function convert_aos(pomdp, aos)
+    len_items = Int(length(aos) / 2 - 1)
+    result = []
+
+    for idx in 1:len_items
+        i = (idx-1)*2 + 1
+        a_sym, o = aos[i: i+1]
+        push!(result, (a_sym, states(pomdp)[o]))
+    end
+
+    return result
+end
+
 function run_fwd_simulation_sao(pomdp, b0, des_ao_traj, max_t; verbose=false)
     simulated_s = []
     simulated_ao = []
@@ -86,18 +99,25 @@ function validation_probs_and_scores(β_levels, pomdp, max_t, des_final_state, C
     return probs, scores
 end
 
-function bayesian_next_belief(tab_pomdp, o, a, b)
-    bp = tab_pomdp.O[o, a, :] .* (create_T_bar(tab_pomdp, a) * reshape(b, :, 1))
-    return normalize(vec(bp))
-end
+function validation_probs_and_scores_UCT(TREE, pomdp, max_t, des_final_state, CMD_ARGS; lower_bound=false, verbose=false)
+    probs = []
+    scores = []
+    items = length(TREE.P)
 
-function bayesian_prob(tab_pomdp, acts, bel, aos)
-    prob = 1.0
-    bp = bel
-    for (a_sym, o) in aos[1:end-1]
-        a = findfirst(x->x==a_sym, acts)
-        prob *= branch_weight(tab_pomdp, o, a, bp)
-        bp = bayesian_next_belief(tab_pomdp, o, a, bp)
+    tab_pomdp = tabulate(pomdp)
+    acts = collect(actions(pomdp))
+
+    for (i, belRec) in enumerate(keys(TREE.P))
+        bel, aos = belRec.β, belRec.ao
+        p = TREE.P[belRec]
+    
+        prob = bayesian_prob(tab_pomdp, acts, bel, aos)
+        # prob = bayesian_prob_summed(tab_pomdp, acts, bel, aos)
+        _, score = batch_fwd_simulations(pomdp, CMD_ARGS[:epochs], des_final_state, bel, convert_aos(pomdp, aos), lower_bound=lower_bound, verbose=verbose);
+
+        println("  Item:\t\t  $(i) of $(items) \n  TREE Value:\t  $(p) \n  Approx Prob:\t  $(prob) \n  Lhood Score:\t  $(score) \n  aos:\t  $(aos)")
+        push!(probs, prob)
+        push!(scores, score)
     end
-    return round(prob; digits=5)
+    return probs, scores
 end

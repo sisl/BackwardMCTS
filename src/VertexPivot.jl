@@ -20,7 +20,7 @@ function remove_redundant_col(A, B, rank_des)
     end
 end
 
-function extract_vertex(B, LP)
+@memoize function extract_vertex(B, LP)
     A, b, c = LP.A, LP.b, LP.c
     b_inds = sort!(collect(B))
     AB = A[:,b_inds]
@@ -31,7 +31,7 @@ function extract_vertex(B, LP)
     return x
 end
 
-function edge_transitions!(LP, B, q)
+@memoize function edge_transitions!(LP, B, q)
     ϵ = 1e-10
     A, b, c, no_of_states = LP.A, LP.b, LP.c, LP.no_of_states
     rank_des = rank(A)
@@ -105,7 +105,7 @@ function find_bases(LP, B, rank_des, q, p)
 end
 
 
-function get_polygon_vertices!(B, LP)
+@memoize function get_polygon_vertices!(B, LP)
     ϵ = 1e-10
     A, b, c, no_of_states = LP.A, LP.b, LP.c, LP.no_of_states
     n = size(A, 2)
