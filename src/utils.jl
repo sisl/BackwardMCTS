@@ -1,11 +1,12 @@
 include("argparse_utils.jl")
 
 using LinearAlgebra: Diagonal, dot, rank, diag
-using Statistics: mean
+using Statistics: mean, std
 using DelimitedFiles
 using ProgressBars
 using Memoize
 using Distributions: TriangularDist
+using StatsBase: sample, Weights
 
 Tqdm(obj) = length(obj) == 1 ? obj : ProgressBars.tqdm(obj)
 
@@ -78,23 +79,31 @@ function csvdump(probs, scores, CMD_ARGS)
     end
 end
 
-struct LP_Solver_config 
-    model
-    z_threshold
-end
-
 struct BeliefRecord
     β
     ao
 end
 
-function zDistribution(z_min = 0.0, z_max = 1.0)
-    # Outputs a distributtion whose pdf is proportional to its input.
-    # `z_max` is the upper bound to the z-value we know will not output any feasible solution to its corresponding LP.
-    a = z_min
-    b = c = z_max
-    return TriangularDist(a, b, c)
+struct CappedExponential
+    vals
+    probs
+    len
 end
+
+struct LP_Solver_config 
+    model
+    z_dist_exp::CappedExponential
+end
+
+function zDistribution_exp(linspace_size=10000, z_min=0.0, z_max=1.0; exp_const=1.0)
+    # Outputs a distribution whose pdf is proportional to exp(cx).
+    vals = LinRange(z_min, z_max, linspace_size)
+    probs = exp.(exp_const * vals)
+    return CappedExponential(vals, probs, linspace_size)
+end
+
+# Sample from a CappedExponential with maximum value of `z_high`.
+Base.rand(D::CappedExponential, z_high) = sample(view(D.vals, 1:Int(round(z_high*D.len))), Weights(view(D.probs, 1:Int(round(z_high*D.len)))))
 
 # Check equality of structs x and y of same type
 @generated function ≂(x, y)
@@ -108,3 +117,9 @@ end
 # Check if item is in dict or keys(dict)
 Base.in(item::BeliefRecord, keys::Base.KeySet{BeliefRecord,Dict{BeliefRecord,Float64}}) = any(Ref(item) .≂ keys)
 Base.in(item::BeliefRecord, dict::Dict{BeliefRecord,Float64}) = Base.in(item, keys(dict))
+
+# Standard Error
+ste(A::AbstractArray) = std(A) / sqrt(length(A))
+
+# Mean Absolute Error
+mae(A::AbstractArray) = sum(abs.(A)) / length(A)

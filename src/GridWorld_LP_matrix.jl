@@ -132,25 +132,74 @@ function validate(O, T, Γ, αj, β_t, LP_Solver_model, z_val)
     end
 end
 
+function get_z_high(O, T, Γ, αj, β_t, LP_Solver_model)
+    no_of_states = length(β_t)
+
+    model = Model(LP_Solver_model)
+
+    @variable(model, x[1:no_of_states])
+    @variable(model, z)
+
+    # Constraint 1: Updated belief should be a valid prob. distribution (RM: this is actually just the normalizing constant for next belief)
+    # @constraint(model, 1.0 .== ones(1,no_of_states)*O*T*x)
+    
+    # Constraint 2: Alpha-vector constraints
+    for αk in 1:length(Γ)
+        if (αk != αj)
+            @constraint(model, dot(Γ[αj], x) >= dot(Γ[αk], x))
+        end
+    end
+    
+    # Constraint 3: Belief x should be a valid prob. distribution
+    @constraint(model, x .>= 0.0)
+    @constraint(model, x .<= 1.0)
+    @constraint(model, sum(x) == 1.0)
+
+    # Constraint 4: Nullspace constraint
+    sum_cols = sum(O*T, dims=1)
+    nullspace_columns = (sum_cols .== 0)
+    for i in 1:no_of_states
+        if nullspace_columns[i]
+            @constraint(model, x[i] .== 0)
+        end
+    end
+
+    # Constraint 5: Reachability constraint
+    Oa = reshape(diag(O), 1, :)
+    @constraint(model, dot(Oa*T, x) == z)
+
+    @objective(model, Max, z)
+    optimize!(model)
+
+    if termination_status(model) == JuMP.MathOptInterface.INFEASIBLE || termination_status(model) == JuMP.MathOptInterface.OTHER_ERROR || termination_status(model) == JuMP.MathOptInterface.INFEASIBLE_OR_UNBOUNDED
+        return 0.0
+        
+    else
+        return JuMP.value.(z)
+    end
+end
+
 function validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, αj)
     Γ = policy.alphas
     O = create_O_bar(tab_pomdp, obs_id)
+    T = create_T_bar(tab_pomdp, policy.action_map[αj])
 
-    z_max = 1.0
     Vals = Dict()
-
-    while z_max > LP_Solver.z_threshold
-        z_val = rand(zDistribution(LP_Solver.z_threshold, z_max))
-        X, J, A, b, c = @suppress validate(O, create_T_bar(tab_pomdp, policy.action_map[αj]), Γ, αj, β_next, LP_Solver.model, z_val)
-        push!.(Ref(Vals), (:X, :J, :A, :b, :c).=>(X, J, A, b, c))
-
-        # @show (αj, J)
-        if !(J == Inf)
-            break
-            # @show z_val
-        end
-        z_max = z_val
+    
+    # global B = β_next
+    # global OO = O
+    # global TT = T
+    # @show (obs_id, αj)
+    
+    z_high = @suppress get_z_high(O, T, Γ, αj, β_next, LP_Solver.model)
+    if z_high == 0.0
+        return nothing
     end
+
+    z_val = rand(LP_Solver.z_dist_exp, z_high)
+    X, J, A, b, c = @suppress validate(O, T, Γ, αj, β_next, LP_Solver.model, z_val)
+    push!.(Ref(Vals), (:X, :J, :A, :b, :c).=>(X, J, A, b, c))
+
 
     if (Vals[:J] == Inf)
         return nothing
@@ -166,7 +215,6 @@ function validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, �
     @suppress remove_polygon_vertices!(LP, Γ, αj);
     return LP
 end
-
 
 function validate_all_actions(tab_pomdp, obs_id, policy, β_next, LP_Solver)
     Γ = policy.alphas

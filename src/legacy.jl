@@ -113,3 +113,105 @@ function vertices_from_belief_subspace(LP)
     end
     return X_stars
 end
+
+function zDistribution(z_min = 0.0, z_max = 1.0)
+    # Outputs a distribution whose pdf is proportional to its input.
+    # `z_max` is the upper bound to the z-value we know will not output any feasible solution to its corresponding LP.
+    a = z_min
+    b = c = z_max
+    return TriangularDist(a, b, c)
+end
+
+""" LEGACY. To be used with `z_threshold` value. """
+function validate_single_action_old(tab_pomdp, obs_id, policy, β_next, LP_Solver, αj)
+    Γ = policy.alphas
+    O = create_O_bar(tab_pomdp, obs_id)
+
+    z_max = 1.0
+    Vals = Dict()
+
+    while z_max > LP_Solver.z_threshold
+        z_val = rand(zDistribution(LP_Solver.z_threshold, z_max))
+        X, J, A, b, c = @suppress validate(O, create_T_bar(tab_pomdp, policy.action_map[αj]), Γ, αj, β_next, LP_Solver.model, z_val)
+        push!.(Ref(Vals), (:X, :J, :A, :b, :c).=>(X, J, A, b, c))
+
+        # @show (αj, J)
+        if !(J == Inf)
+            break
+            # @show z_val
+        end
+        z_max = z_val
+    end
+
+    if (Vals[:J] == Inf)
+        return nothing
+    end
+
+    # @show keys(Vals)
+    # @show Vals[:J]
+    # @warn "aa"
+    LP = LinearProgram(Vals[:A], Vals[:b], Vals[:c], Vals[:X], no_of_states, Set(), αj);
+    B = get_valid_partition(Vals[:A], Vals[:X]);
+
+    @suppress get_polygon_vertices!(B, LP);
+    @suppress remove_polygon_vertices!(LP, Γ, αj);
+    return LP
+end
+
+""" This function is no longer used. It is the tree search without UCT. """
+function backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver, obs_N=1, belief_N=1)
+    # obs_N    = 1
+    # belief_N = 1
+
+    tab_pomdp = tabulate(pomdp)
+    actions_pomdp = actions(pomdp)
+
+    β_levels = Dict()
+    push!(β_levels, 0 => βts_and_history([β_final], [(:end, -1)]))
+
+    for t = Tqdm(1:max_t)
+
+        lvl = β_levels[t-1]
+        β = []
+        # W = []
+        AO = []
+        
+        for l = Tqdm(1:length(lvl.ao))
+            β_next = lvl.β[l]
+            # W_next = lvl.W[l]
+            AO_next = lvl.ao[l]
+
+            # Sample possible observations (with weights)
+            nonzero_weights, nonzero_states = nonzero(β_next)
+            obs_weights = weighted_column_sum(nonzero_weights, tab_pomdp.O[:, end, nonzero_states])
+            
+            if t==1  # enforce fully-observable for final (sink) state
+                obs_samples, obs_weights = maxk(obs_weights, 1)
+            else
+                obs_samples, obs_weights = maxk(obs_weights, obs_N)
+            end
+
+            ## This part is backwards in time (from leaf to root)
+            # Get previous beliefs, given the sampled observation and optimal policy
+            LPs = map(obs_id -> validate_all_actions(tab_pomdp, obs_id, policy, β_next, LP_Solver), obs_samples);
+            S = map(item -> sample_from_belief_subspace.(item[2], Ref(tab_pomdp), Ref(obs_samples[item[1]]), Ref(belief_N)), enumerate(LPs));  # item := (idx, LP) 
+
+            ## This part is forward in time (from root to leaf)
+            # Compute weights for branches
+            # Weights = get_branch_weights.(Ref(tab_pomdp), obs_samples, LPs, S)
+            # Weights = get_branch_weights_v2.(Ref(tab_pomdp), obs_samples, obs_weights, LPs, S)
+            ActObs = get_branch_actobs.(Ref(actions_pomdp), Ref(AO_next), obs_samples, LPs, S)
+
+            S = flatten_twice(S);
+            # Weights = flatten_twice(Weights);
+            ActObs = flatten_twice(ActObs);
+
+            append!(β, S)
+            # append!(W, Weights * W_next)
+            append!(AO, ActObs)
+        end
+        
+        push!(β_levels, t => βts_and_history(β, AO))
+    end
+    return β_levels
+end

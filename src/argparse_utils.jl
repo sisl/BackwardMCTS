@@ -12,9 +12,9 @@ function parse_commandline()
             arg_type = Float64
             default = 0.8
 
-        "--z_threshold"
+        "--z_dist_exp_const"
             arg_type = Float64
-            default = 0.4
+            default = 3.0
 
         "--no_of_simulations"
             arg_type = Int
@@ -47,7 +47,7 @@ function parse_commandline()
         "--savename"
             help = "Save name of file for results. Any valid String accepted. Pass no arguments to skip saving."
             arg_type = String
-            default = "anil_001.csv"  #nothing
+            default = "anil_001.csv"  #nothing  # TODO: get current timestamp
     end
 
     return parse_args(s, as_symbols=true)
