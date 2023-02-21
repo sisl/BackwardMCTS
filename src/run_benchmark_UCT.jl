@@ -1,3 +1,5 @@
+@info "Using $(Threads.nthreads()) threads."
+
 include("utils.jl")
 include("gridworldpomdp.jl")
 include("GridWorld_MCTS_matrix.jl")

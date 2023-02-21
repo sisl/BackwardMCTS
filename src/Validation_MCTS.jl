@@ -65,7 +65,8 @@ function batch_fwd_simulations(pomdp, epochs, des_final_state, b0_testing, des_a
     init_states = []
     b0 = DiscreteBelief(pomdp, states(pomdp), b0_testing)
 
-    for e = Tqdm(1:epochs)
+    # for e = Tqdm(1:epochs)
+    for e = 1:epochs
         sim_s, sim_ao = run_fwd_simulation_sao(pomdp, b0, des_ao_traj, max_t; verbose=verbose)
         if length(sim_s)==max_t+1 && sim_s[end]==des_final_state && sim_s[1]!=des_final_state && check_ao_trajs(sim_ao, des_ao_traj, lower_bound)
             push!(init_states, sim_s[1])
@@ -100,14 +101,16 @@ function validation_probs_and_scores(β_levels, pomdp, max_t, des_final_state, C
 end
 
 function validation_probs_and_scores_UCT(TREE, pomdp, max_t, des_final_state, CMD_ARGS; lower_bound=false, verbose=false)
-    probs = []
-    scores = []
-    items = length(TREE.P)
+    items = collect(keys(TREE.P))
+    probs = zeros(length(items))
+    scores = zeros(length(items))
 
     tab_pomdp = tabulate(pomdp)
     acts = collect(actions(pomdp))
-
-    for (i, belRec) in enumerate(keys(TREE.P))
+        
+    @info "Using $(Threads.nthreads()) threads."
+    Threads.@threads for i = Tqdm(1:length(items)) # (i, belRec) in enumerate(keys(TREE.P))
+        belRec = items[i]
         bel, aos = belRec.β, belRec.ao
         p = TREE.P[belRec]
     
@@ -115,9 +118,13 @@ function validation_probs_and_scores_UCT(TREE, pomdp, max_t, des_final_state, CM
         # prob = bayesian_prob_summed(tab_pomdp, acts, bel, aos)
         _, score = batch_fwd_simulations(pomdp, CMD_ARGS[:epochs], des_final_state, bel, convert_aos(pomdp, aos), lower_bound=lower_bound, verbose=verbose);
 
-        println("  Item:\t\t  $(i) of $(items) \n  TREE Value:\t  $(p) \n  Approx Prob:\t  $(prob) \n  Lhood Score:\t  $(score) \n  aos:\t  $(aos)")
-        push!(probs, prob)
-        push!(scores, score)
+        if verbose
+            println("  Item:\t\t  $(i) of $(items) \n  TREE Value:\t  $(p) \n  Approx Prob:\t  $(prob) \n  Lhood Score:\t  $(score) \n  aos:\t  $(aos)")
+        end
+        # push!(probs, prob)
+        # push!(scores, score)
+        probs[i] = prob
+        scores[i] = score
     end
     return probs, scores
 end
