@@ -123,3 +123,8 @@ ste(A::AbstractArray) = std(A) / sqrt(length(A))
 
 # Mean Absolute Error
 mae(A::AbstractArray) = sum(abs.(A)) / length(A)
+
+function softmax_neg(vals::AbstractArray)
+    e = exp.(-vals)
+    return e ./ sum(e)
+end

@@ -15,7 +15,7 @@ using Parameters: @with_kw
     Q  = DefaultDict{Tuple, Float64}(0.0)                               # hist -> Q-value
     N  = DefaultDict{Tuple, Int}(0.0)                                   # hist -> N-value
 
-    P = Dict{BeliefRecord, Float64}()                                  # belief -> reachability probability
+    P = Dict{BeliefRecord, Float64}()                                   # belief -> reachability probability
 end
 
 # Instantiate:
@@ -125,11 +125,10 @@ function rollout(TREE, β, h, Params)
     end
 
     obs = sample_obs(β, depth(h), Params[:tab_pomdp])
-    act = rollout_action(h, Params[:actions_pomdp])
-
+    
     ## This part is backwards in time (from leaf to root)
     # Get previous belief, given the sampled observation and selected action
-    LP = validate_single_action(Params[:tab_pomdp], obs, Params[:policy], β, Params[:LP_Solver], act)
+    act, LP = validate_rollout_actions(Params[:tab_pomdp], obs, Params[:policy], β, Params[:LP_Solver])
     if isnothing(LP)
         return 0.0
     end
@@ -137,11 +136,6 @@ function rollout(TREE, β, h, Params)
     β_prev = sample_from_belief_subspace(LP, Params[:tab_pomdp], obs)
     aoh = (Params[:actions_pomdp][act], obs, h...)
     return rollout(TREE, β_prev, aoh, Params)
-end
-
-function rollout_action(h, acts)
-    # TODO. Change this.
-    return rand(1:length(acts))
 end
 
 

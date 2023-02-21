@@ -215,3 +215,41 @@ function backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver, obs_N=1, beli
     end
     return β_levels
 end
+
+function validate_all_actions(tab_pomdp, obs_id, policy, β_next, LP_Solver)
+    Γ = policy.alphas
+    O = create_O_bar(tab_pomdp, obs_id)
+
+    res = @suppress map(αj->validate(O, create_T_bar(tab_pomdp, policy.action_map[αj]), Γ, αj, β_next, LP_Solver), 1:length(Γ))
+    
+    
+    # J_min = minimum(getindex.(res, Ref(2)))   # index=2 is the obj value
+    resRef2 = round.(getindex.(res, Ref(2)); digits=4)
+    J_min = minimum(resRef2)   # index=2 is the obj value, rounded-off to 4 decimals 
+
+    if J_min == Inf
+        return []
+    end
+
+    a_star = resRef2 .== J_min
+    a_star_idxs = (1:length(a_star))[a_star]
+
+    X_inits = getindex.(res[a_star], Ref(1))    # index=1 is the x value
+
+    A_matrices = getindex.(res[a_star], Ref(3))   # index=3 is the A matrix
+    A_matrices = collect.(A_matrices);
+    
+    b_vectors = getindex.(res[a_star], Ref(4))   # index=4 is the b matrix
+    b_vectors = collect.(b_vectors);
+
+    c_vectors = getindex.(res[a_star], Ref(5))   # index=5 is the c matrix
+    c_vectors = collect.(c_vectors);
+
+    emptySets = [Set() for _ in 1:sum(a_star)]
+    LPs = LinearProgram.(A_matrices, b_vectors, c_vectors, X_inits, Ref(no_of_states), emptySets, a_star_idxs);
+    Bs = get_valid_partition.(A_matrices, X_inits);
+
+    @suppress get_polygon_vertices!.(Bs, LPs);
+    @suppress remove_polygon_vertices!.(LPs, Ref(Γ), a_star_idxs);
+    return LPs
+end

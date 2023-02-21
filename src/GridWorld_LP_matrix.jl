@@ -5,6 +5,7 @@ using Suppressor
 using JuMP
 using LinearAlgebra: Diagonal, dot, rank
 using Random
+using StatsBase: sample, Weights
 
 function obj_func(O, T, β_t, x)
     no_of_states = length(x)
@@ -179,12 +180,12 @@ function get_z_high(O, T, Γ, αj, β_t, LP_Solver_model)
     end
 end
 
-function validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, αj)
+function validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, αj; with_J=false)
     Γ = policy.alphas
     O = create_O_bar(tab_pomdp, obs_id)
     T = create_T_bar(tab_pomdp, policy.action_map[αj])
 
-    Vals = Dict()
+    # Vals = Dict()
     
     # global B = β_next
     # global OO = O
@@ -198,61 +199,49 @@ function validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, �
 
     z_val = rand(LP_Solver.z_dist_exp, z_high)
     X, J, A, b, c = @suppress validate(O, T, Γ, αj, β_next, LP_Solver.model, z_val)
-    push!.(Ref(Vals), (:X, :J, :A, :b, :c).=>(X, J, A, b, c))
+    # push!.(Ref(Vals), (:X, :J, :A, :b, :c).=>(X, J, A, b, c))
 
 
-    if (Vals[:J] == Inf)
+    if (J == Inf)
         return nothing
     end
 
     # @show keys(Vals)
-    # @show Vals[:J]
+    # @show J
     # @warn "aa"
-    LP = LinearProgram(Vals[:A], Vals[:b], Vals[:c], Vals[:X], no_of_states, Set(), αj);
-    B = get_valid_partition(Vals[:A], Vals[:X]);
+    LP = LinearProgram(A, b, c, X, no_of_states, Set(), αj);
+    B = get_valid_partition(A, X);
 
     @suppress get_polygon_vertices!(B, LP);
     @suppress remove_polygon_vertices!(LP, Γ, αj);
-    return LP
+    if !with_J
+        return LP
+    else
+        return LP, J
+    end
 end
 
-function validate_all_actions(tab_pomdp, obs_id, policy, β_next, LP_Solver)
+
+function validate_rollout_actions(tab_pomdp, obs_id, policy, β_next, LP_Solver)
+    # Choose next rollout action w.r.t. softmax(-J).
     Γ = policy.alphas
-    O = create_O_bar(tab_pomdp, obs_id)
 
-    res = @suppress map(αj->validate(O, create_T_bar(tab_pomdp, policy.action_map[αj]), Γ, αj, β_next, LP_Solver), 1:length(Γ))
-    
-    
-    # J_min = minimum(getindex.(res, Ref(2)))   # index=2 is the obj value
-    resRef2 = round.(getindex.(res, Ref(2)); digits=4)
-    J_min = minimum(resRef2)   # index=2 is the obj value, rounded-off to 4 decimals 
+    LPs = []
+    Js = Float64[]
 
-    if J_min == Inf
-        return []
+    for αj in 1:length(Γ)
+        res = validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, αj; with_J=true)
+        !isnothing(res) ? (lp,j)=res : continue
+        push!(LPs, lp)
+        push!(Js, j)
     end
 
-    a_star = resRef2 .== J_min
-    a_star_idxs = (1:length(a_star))[a_star]
-
-    X_inits = getindex.(res[a_star], Ref(1))    # index=1 is the x value
-
-    A_matrices = getindex.(res[a_star], Ref(3))   # index=3 is the A matrix
-    A_matrices = collect.(A_matrices);
-    
-    b_vectors = getindex.(res[a_star], Ref(4))   # index=4 is the b matrix
-    b_vectors = collect.(b_vectors);
-
-    c_vectors = getindex.(res[a_star], Ref(5))   # index=5 is the c matrix
-    c_vectors = collect.(c_vectors);
-
-    emptySets = [Set() for _ in 1:sum(a_star)]
-    LPs = LinearProgram.(A_matrices, b_vectors, c_vectors, X_inits, Ref(no_of_states), emptySets, a_star_idxs);
-    Bs = get_valid_partition.(A_matrices, X_inits);
-
-    @suppress get_polygon_vertices!.(Bs, LPs);
-    @suppress remove_polygon_vertices!.(LPs, Ref(Γ), a_star_idxs);
-    return LPs
+    # @show Js
+    # @show softmax_neg(Js)
+    chosen_act = sample(1:length(Γ), Weights(softmax_neg(Js)))
+    return chosen_act, LPs[chosen_act]
 end
+
 
 function sample_from_belief_subspace(LP, tab_pomdp, obs_id)
     X_stars = reshape(Float64[], LP.no_of_states, 0)
