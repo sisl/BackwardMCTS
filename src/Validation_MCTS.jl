@@ -91,7 +91,7 @@ function validation_probs_and_scores(β_levels, pomdp, max_t, des_final_state, C
     
         prob = bayesian_prob(tab_pomdp, acts, bel, aos)
         # prob = bayesian_prob_summed(tab_pomdp, acts, bel, aos)
-        _, score = batch_fwd_simulations(pomdp, CMD_ARGS[:epochs], des_final_state, bel, convert_des_ao_traj(pomdp, aos), lower_bound=lower_bound, verbose=verbose);
+        _, score = batch_fwd_simulations(pomdp, CMD_ARGS[:val_epochs], des_final_state, bel, convert_des_ao_traj(pomdp, aos), lower_bound=lower_bound, verbose=verbose);
 
         println("  Item:\t\t  $(i) of $(items) \n  Approx Prob:\t  $(prob) \n  Lhood Score:\t  $(score)")
         push!(probs, prob)
@@ -108,7 +108,7 @@ function validation_probs_and_scores_UCT(TREE, pomdp, max_t, des_final_state, CM
     tab_pomdp = tabulate(pomdp)
     acts = collect(actions(pomdp))
         
-    @info "Using $(Threads.nthreads()) threads."
+    @info "Using $(Threads.nthreads()) threads.\nBackwardsTree has $(length(items)) nodes."
     Threads.@threads for i = Tqdm(1:length(items)) # (i, belRec) in enumerate(keys(TREE.P))
         belRec = items[i]
         bel, aos = belRec.β, belRec.ao
@@ -116,13 +116,12 @@ function validation_probs_and_scores_UCT(TREE, pomdp, max_t, des_final_state, CM
     
         prob = bayesian_prob(tab_pomdp, acts, bel, aos)
         # prob = bayesian_prob_summed(tab_pomdp, acts, bel, aos)
-        _, score = batch_fwd_simulations(pomdp, CMD_ARGS[:epochs], des_final_state, bel, convert_aos(pomdp, aos), lower_bound=lower_bound, verbose=verbose);
+        _, score = batch_fwd_simulations(pomdp, CMD_ARGS[:val_epochs], des_final_state, bel, convert_aos(pomdp, aos), lower_bound=lower_bound, verbose=verbose);
 
         if verbose
             println("  Item:\t\t  $(i) of $(items) \n  TREE Value:\t  $(p) \n  Approx Prob:\t  $(prob) \n  Lhood Score:\t  $(score) \n  aos:\t  $(aos)")
         end
-        # push!(probs, prob)
-        # push!(scores, score)
+
         probs[i] = prob
         scores[i] = score
     end

@@ -114,6 +114,11 @@ Base.rand(D::CappedExponential, z_high) = sample(view(D.vals, 1:Int(round(z_high
     end
 end
 
+function softmax_neg(vals::AbstractArray)
+    e = exp.(-vals)
+    return e ./ sum(e)
+end
+
 # Check if item is in dict or keys(dict)
 Base.in(item::BeliefRecord, keys::Base.KeySet{BeliefRecord,Dict{BeliefRecord,Float64}}) = any(Ref(item) .≂ keys)
 Base.in(item::BeliefRecord, dict::Dict{BeliefRecord,Float64}) = Base.in(item, keys(dict))
@@ -123,8 +128,3 @@ ste(A::AbstractArray) = std(A) / sqrt(length(A))
 
 # Mean Absolute Error
 mae(A::AbstractArray) = sum(abs.(A)) / length(A)
-
-function softmax_neg(vals::AbstractArray)
-    e = exp.(-vals)
-    return e ./ sum(e)
-end

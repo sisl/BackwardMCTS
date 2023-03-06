@@ -8,11 +8,12 @@ include("Validation_MCTS.jl")
 using Gurobi
 using QMDP
 using POMDPPolicies: solve
+using Random
 
 ########## Params ##########
 CMD_ARGS = parse_commandline()
 @show_args CMD_ARGS
-
+Random.seed!(CMD_ARGS[:noise_seed])
 
 # Create pomdp
 pomdp = SimpleGridWorldPOMDP(size=(CMD_ARGS[:gridsize], CMD_ARGS[:gridsize]),

@@ -15,12 +15,12 @@ using Parameters: @with_kw
     Q  = DefaultDict{Tuple, Float64}(0.0)                               # hist -> Q-value
     N  = DefaultDict{Tuple, Int}(0.0)                                   # hist -> N-value
 
-    P = Dict{BeliefRecord, Float64}()                                   # belief -> reachability probability
+    P = Dict{BeliefRecord, Float64}()                                   # belief/hist -> reachability probability
 end
 
 # Instantiate:
 BackwardTree(max_t) = BackwardTree(T=Dict(i=>Set{Tuple}() for i=0:max_t))
-
+Base.length(T::BackwardTree) = length(T.P)
 
 # Get a list of items from a Dict or DefaultDict.
 getd(d::Union{Dict, DefaultDict}, k::Union{Set, AbstractArray}) = getindex.(Ref(d), k)
