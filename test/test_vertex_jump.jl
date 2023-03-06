@@ -127,7 +127,7 @@ function step_lp!(B, LP)
     possible_pivots = n_inds[(1:length(μV))[μV .<= ϵ]]
     
     for q in possible_pivots
-        edge_transitions!(LP, B, q) # --> TODO: This should call itself recursively
+        edge_transitions!(LP, B, q)
     end
 
 end

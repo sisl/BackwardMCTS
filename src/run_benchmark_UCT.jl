@@ -1,3 +1,5 @@
+@info "Using $(Threads.nthreads()) threads."
+
 include("utils.jl")
 include("gridworldpomdp.jl")
 include("GridWorld_MCTS_matrix.jl")
@@ -6,11 +8,12 @@ include("Validation_MCTS.jl")
 using Gurobi
 using QMDP
 using POMDPPolicies: solve
+using Random
 
 ########## Params ##########
 CMD_ARGS = parse_commandline()
 @show_args CMD_ARGS
-
+Random.seed!(CMD_ARGS[:noise_seed])
 
 # Create pomdp
 pomdp = SimpleGridWorldPOMDP(size=(CMD_ARGS[:gridsize], CMD_ARGS[:gridsize]),
@@ -35,7 +38,7 @@ des_final_state = GWPos(3,1)
 
 # Create BMCTS
 max_t = CMD_ARGS[:timesteps]
-LP_Solver = LP_Solver_config(Gurobi.Optimizer, CMD_ARGS[:z_val])
+LP_Solver = LP_Solver_config(Gurobi.Optimizer, zDistribution_exp(exp_const=CMD_ARGS[:z_dist_exp_const]))
 TREE = search!(pomdp, policy, β_final, max_t, LP_Solver, CMD_ARGS[:no_of_simulations], CMD_ARGS[:exploration_const])
 
 # Validate BMCTS nodes
