@@ -1,10 +1,11 @@
-using NearestNeighbors
-using Distributions
-using POMDPs
 include("utils.jl")
 include("GridWorld_MCTS_matrix.jl")
 
-mutable struct KDTree_and_probs  # TODO: remove mutable
+using NearestNeighbors
+using Distributions: MvNormal
+using POMDPs
+
+mutable struct KDTree_and_probs
     tree::NearestNeighbors.KDTree
     hist_and_probs::Dict
 end
@@ -33,21 +34,30 @@ Base.length(kdtree::KDTree_and_probs) = length(kdtree.tree.data)
 
 
 function benchmark_kdtree(kdtree::KDTree_and_probs, pomdp::POMDP, des_final_state; sigma::Float64, lower_bound=false, verbose=false)
+    # Benchmark a consturcted KDTree by perturbing its elements.
     
-    perturb(data, dist) = collect(normalize(abs.(data + rand(dist))))
-    dist = Distributions.MvNormal(zeros(length(first(kdtree.tree.data))), sigma)
-
     tree_probs = zeros(length(kdtree))
     bayes_probs = zeros(length(kdtree))
     scores = zeros(length(kdtree))
 
     tab_pomdp = tabulate(pomdp)
     acts = collect(actions(pomdp))
+
+    function perturb(d, sigma)
+        S = getRandomSamplesOnNSphere(d, sigma)  # samples of beliefs located on the ϵ-ball centered at belief
+        S = S[:, isValidProb(S)]  # filter out samples that are not valid probability distributions
+        idx = argmin(abs.(L1_norm(S) .- 1.0))  # find the sample whose L1 norm is closest to 1.0 (i.e. a valid probability)
+        return normalize(S[:, last(idx.I)])
+    end
     
     @info "Using $(Threads.nthreads()) threads.\nBackwardsTree has $(length(kdtree)) nodes."
     Threads.@threads for i = Tqdm(1:length(kdtree))  # (i,d) in Tqdm(enumerate(kdtree.tree.data))
         d = kdtree.tree.data[i]
-        dp = perturb(d, dist)
+        dp = perturb(d, sigma)
+
+        # @show d
+        # @show dp
+        # @show L2_norm(dp-d)
 
         # KDTree data:
         hist, tree_prob = kdtree.hist_and_probs[d]  # Don't use the probs form the KDTree, but instead, estimate using Bayes' Rule

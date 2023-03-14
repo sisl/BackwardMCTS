@@ -6,7 +6,6 @@ using DataStructures: DefaultDict
 using StatsBase: sample, Weights
 using Parameters: @with_kw
 
-
 @with_kw mutable struct BackwardTree
     AO = Set{Tuple}()                                                   # histories of (a,o,...)
     T  = Dict{Int, Set{Tuple}}()                                        # timestep -> corresponding values of AO

@@ -29,14 +29,6 @@ function parse_commandline()
             arg_type = Int
             default = 4
 
-        # "--obs_N"
-        #     arg_type = Int
-        #     default = 2
-
-        # "--belief_N"
-        #     arg_type = Int
-        #     default = 10
-
         "--val_epochs"
             arg_type = Int
             default = 100_000
@@ -48,7 +40,7 @@ function parse_commandline()
         "--savename"
             help = "Save name of file for results. Any valid String accepted. Pass no arguments to skip saving."
             arg_type = String
-            default = "benchmarkRun_" * string(now()) * ".csv"
+            default = "benchmarkRun_" * string(now())
     end
 
     return parse_args(s, as_symbols=true)

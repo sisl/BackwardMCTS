@@ -7,6 +7,8 @@ using ProgressBars
 using Memoize
 using Distributions: TriangularDist
 using StatsBase: sample, Weights
+using Suppressor
+using JLD
 
 Tqdm(obj) = length(obj) == 1 ? obj : ProgressBars.tqdm(obj)
 
@@ -53,18 +55,18 @@ function zeros_except(N::Int, idx::Int)
     return res
 end
 
-function normalize(A::AbstractVector)
-    return A ./ sum(A)
+function normalize(A::AbstractArray)
+    return A ./ sum(A, dims=1)
 end
 
-function normalize!(A::AbstractVector)
-    A[:] .= A ./ sum(A)
+function normalize!(A::AbstractArray)
+    A[:] = A ./ sum(A, dims=1)
 end
 
 remove(list, item) = list[list .!= item]
 
 function csvdump(probs, scores, CMD_ARGS)
-    f = pop!(CMD_ARGS, :savename)
+    f = pop!(CMD_ARGS, :savename) * ".csv"
 
     perm = sortperm(string.(keys(CMD_ARGS)))
     header = reshape(collect(string.(keys(CMD_ARGS)))[perm], 1, :)
@@ -118,6 +120,47 @@ function softmax_neg(vals::AbstractArray)
     e = exp.(-vals)
     return e ./ sum(e)
 end
+
+L1_norm(A::AbstractArray) = sum(A, dims=1)
+L2_norm(A::AbstractArray) = sqrt.(sum(A.^2, dims=1)) 
+
+function getRandomSamplesOnNSphere(center, radius, num_of_samples=100000)
+    # Gets uniformly random samples located on an N-dimensional sphere with radius R, centered at C.
+    # center/radius: R/C of sphere, num_of_samples: how many samples to return.
+    # From: https://stackoverflow.com/a/63354046
+    dim = length(center)
+    
+    X = randn((dim, num_of_samples))
+    abs_X = abs.(X)
+
+    zr = (center .== 0)
+    Y = (X .* .!zr) + (abs_X .* zr)
+
+    normalizer = sqrt.(sum(Y.^2, dims=1))
+    return center .+ (Y ./ normalizer .* radius)
+end
+
+
+function getRandomSamplesInNSphere(center, radius, num_of_samples=100000)
+    # Gets uniformly random samples located inside an N-dimensional sphere with radius R, centered at C.
+    # center/radius: R/C of sphere, num_of_samples: how many samples to return.
+    # From: https://stackoverflow.com/a/63354046
+
+    dim = length(center)
+
+    X = randn((dim, num_of_samples))
+    U = rand((1, num_of_samples))
+
+    normalizer = sqrt.(sum(X.^2, dims=1))
+    return radius .* U.^(1/dim) ./ normalizer .* X
+end
+
+
+isValidProb(A::AbstractArray) = all.(eachcol(A.>0)) .& all.(eachcol(A.<1))
+
+
+saveTree(T, fname) = @suppress JLD.save(fname*".jld", "tree", T)
+loadTree(fname) = @suppress JLD.load(fname*".jld")["tree"]
 
 # Check if item is in dict or keys(dict)
 Base.in(item::BeliefRecord, keys::Base.KeySet{BeliefRecord,Dict{BeliefRecord,Float64}}) = any(Ref(item) .≂ keys)
