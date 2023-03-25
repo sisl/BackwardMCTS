@@ -1,4 +1,5 @@
 include("gridworldpomdp.jl")
+include("utils.jl")
 
 using Suppressor
 using JuMP, HiGHS
@@ -8,9 +9,6 @@ using POMDPPolicies: solve
 using QMDP
 
 Random.seed!(1)
-
-create_T_bar(tab_pomdp, act) = tab_pomdp.T[:, act, :]
-create_O_bar(tab_pomdp, obs) = Diagonal(tab_pomdp.O[obs, 1, :])
 
 function reshape_GW(A::AbstractVector)
     no_of_states = length(A)

@@ -1,12 +1,11 @@
+include("utils.jl")
+
 using Suppressor
 using JuMP, HiGHS
 using LinearAlgebra: Diagonal, dot, rank
 using Random
 
 Random.seed!(1)
-
-create_T_bar(tab_pomdp, act) = tab_pomdp.T[:, act, :]
-create_O_bar(tab_pomdp, obs) = Diagonal(tab_pomdp.O[obs, 1, :])
 
 function zeros_except(N::Int, idx::Int)
     res = zeros(N,)
