@@ -79,13 +79,13 @@ function find_bases(LP, B, rank_des, q, p)
     V = remove(V, q)
 
     # see if by just swapping q and p, we can have full-rank
-    if rank(A[:,B]) == rank_des
+    if rank(@view A[:,B]) == rank_des
         return (true, B)
 
     # see if with q and p coexisting, we can have full-rank
     else
         push!(B, p)
-        if rank(A[:,B]) == rank_des
+        if rank(@view A[:,B]) == rank_des
             B = remove_redundant_col(A, B, rank_des)
             return (true, B)
         end 
@@ -158,7 +158,7 @@ function get_valid_partition(A, X)
 
         for idx = length(V) : -1 : 1  #keep reverse
             temp = vcat(B, [V[idx]])
-            AB = A[:,temp];
+            AB = @view A[:,temp];
             if rank(AB) == rank_des
                 push!(B, V[idx])
                 rank_des += 1
@@ -230,7 +230,7 @@ function get_valid_partition_aux(A, X)
             # Construct new AB matrix
             temp = vcat(B, V[v_idxs])
             B = sort(temp)
-            AB = A[:,B];
+            AB = @view A[:,B];
             rAB = rank(AB)
         end
     end
@@ -275,7 +275,7 @@ function get_valid_partition_aux(A, X)
         #     end 
         # end
 
-        temp = A[:, B[B.!=v_val]];  # AB without column `v_val`
+        temp = @view A[:, B[B.!=v_val]];  # AB without column `v_val`
         rTemp = rank(temp)
 
         # @show v_val, length(V), length(B), size(temp)
