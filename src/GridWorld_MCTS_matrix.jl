@@ -62,8 +62,10 @@ end
 
 function sample_node(TREE, t)
     aos = collect(TREE.T[t])
+    isempty(aos) && return true, nothing, nothing
+
     index = sample(1:length(aos), Weights(getd(TREE.Q, aos)))
-    return rand(TREE.β[aos[index]]), aos[index]
+    return false, rand(TREE.β[aos[index]]), aos[index]
 end
 
 function simulate_node!(TREE, Params, β, h)
@@ -126,10 +128,20 @@ function rollout(TREE, β, h, Params)
     obs = sample_obs(β, depth(h), Params[:tab_pomdp])
     
     ## This part is backwards in time (from leaf to root)
-    # Get previous belief, given the sampled observation and selected action
-    act, LP = validate_rollout_actions(Params[:tab_pomdp], obs, Params[:policy], β, Params[:LP_Solver])
-    if isnothing(LP)
-        return 0.0
+    if Params[:rollout_random]
+        # Select random action
+        act = rand(1:length(Params[:actions_pomdp]))
+        LP = validate_single_action(Params[:tab_pomdp], obs, Params[:policy], β, Params[:LP_Solver], act)
+        if isnothing(LP)
+            return 0.0
+        end
+    
+    else
+        # Get previous belief, given the sampled observation and selected action
+        act, LP = validate_rollout_actions(Params[:tab_pomdp], obs, Params[:policy], β, Params[:LP_Solver])
+        if isnothing(LP)
+            return 0.0
+        end
     end
 
     β_prev = sample_from_belief_subspace(LP, Params[:tab_pomdp], obs)
@@ -138,12 +150,12 @@ function rollout(TREE, β, h, Params)
 end
 
 
-function search!(pomdp, policy, β_final, max_t, LP_Solver, no_of_simulations=5, exploration_const=1.0)
+function search!(pomdp, policy, β_final, max_t, LP_Solver, no_of_simulations=5, exploration_const=1.0, rollout_random=false)
     tab_pomdp = tabulate(pomdp)
     actions_pomdp = actions(pomdp)
 
-    Params = Dict([:policy, :max_t, :LP_Solver, :exploration_const, :max_t, :tab_pomdp, :actions_pomdp]
-                    .=> [policy, max_t, LP_Solver, exploration_const, max_t, tab_pomdp, collect(actions_pomdp)])
+    Params = Dict([:policy, :max_t, :LP_Solver, :exploration_const, :rollout_random, :max_t, :tab_pomdp, :actions_pomdp]
+                    .=> [policy, max_t, LP_Solver, exploration_const, rollout_random, max_t, tab_pomdp, collect(actions_pomdp)])
 
     # Initialize tree with single leaf node
     TREE = BackwardTree(max_t)
@@ -152,8 +164,8 @@ function search!(pomdp, policy, β_final, max_t, LP_Solver, no_of_simulations=5,
     for t = 1:max_t
         println("  Timestep:\t  $(t) of $(max_t)")
         for m = Tqdm(1:no_of_simulations)
-            β, h = sample_node(TREE, t-1)
-            simulate_node!(TREE, Params, β, h)
+            empty_flag, β, h = sample_node(TREE, t-1)
+            !empty_flag ? simulate_node!(TREE, Params, β, h) : return TREE
         end
     end
     

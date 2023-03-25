@@ -34,14 +34,14 @@ des_final_state = GWPos(3,1)
 β_final[3] = 1.0
 
 # Create BMCTS
-max_t = CMD_ARGS[:timesteps]
+max_t = CMD_ARGS[:max_timesteps]
 LP_Solver = LP_Solver_config(Gurobi.Optimizer, CMD_ARGS[:z_threshold])
 β_levels = backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver, CMD_ARGS[:obs_N], CMD_ARGS[:belief_N])
 
 # Validate BMCTS nodes
-probs, scores = validation_probs_and_scores(β_levels, pomdp, max_t, des_final_state, CMD_ARGS, lower_bound=false)
+probs, scores, tsteps = validation_probs_and_scores(β_levels, pomdp, max_t, des_final_state, CMD_ARGS, lower_bound=false)
 
 # Dump results to file
-csvdump(probs, scores, CMD_ARGS)
+csvdump(probs, scores, tsteps, CMD_ARGS)
 
 @info "Done!"

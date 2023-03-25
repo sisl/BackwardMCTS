@@ -1,6 +1,6 @@
 include("argparse_utils.jl")
 
-using LinearAlgebra: Diagonal, dot, rank, diag
+using LinearAlgebra: Diagonal, dot, rank, diag, norm, transpose, qr
 using Statistics: mean, std
 using DelimitedFiles
 using ProgressBars
@@ -65,7 +65,7 @@ end
 
 remove(list, item) = list[list .!= item]
 
-function csvdump(probs, scores, CMD_ARGS)
+function csvdump(probs, scores, tsteps, CMD_ARGS)
     f = pop!(CMD_ARGS, :savename) * ".csv"
 
     perm = sortperm(string.(keys(CMD_ARGS)))
@@ -73,10 +73,10 @@ function csvdump(probs, scores, CMD_ARGS)
     vals = reshape(collect(values(CMD_ARGS))[perm], 1, :)
 
     open(f, "a") do io
-        writedlm(io, hcat(["approxprob" "lhoodscore"], header), ", ")
+        writedlm(io, hcat(["approxprob" "lhoodscore" "tsteps"], header), ", ")
         
-        for (p,s) in zip(probs, scores)
-            writedlm(io, hcat([p s], vals), ", ")
+        for (p,s,t) in zip(probs, scores, tsteps)
+            writedlm(io, hcat([p s t], vals), ", ")
         end
     end
 end

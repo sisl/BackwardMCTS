@@ -37,17 +37,17 @@ des_final_state = GWPos(3,1)
 β_final[3] = 1.0
 
 # Create BMCTS
-max_t = CMD_ARGS[:timesteps]
+max_t = CMD_ARGS[:max_timesteps]
 LP_Solver = LP_Solver_config(Gurobi.Optimizer, zDistribution_exp(exp_const=CMD_ARGS[:z_dist_exp_const]))
-TREE = search!(pomdp, policy, β_final, max_t, LP_Solver, CMD_ARGS[:no_of_simulations], CMD_ARGS[:exploration_const])
+TREE = search!(pomdp, policy, β_final, max_t, LP_Solver, CMD_ARGS[:no_of_simulations], CMD_ARGS[:exploration_const], CMD_ARGS[:rollout_random])
 
 # Save tree to local disk
 saveTree(TREE, CMD_ARGS[:savename])
 
 # Validate BMCTS nodes
-probs, scores = validation_probs_and_scores_UCT(TREE, pomdp, max_t, des_final_state, CMD_ARGS, lower_bound=false)
+probs, scores, tsteps = validation_probs_and_scores_UCT(TREE, pomdp, max_t, des_final_state, CMD_ARGS, lower_bound=false)
 
 # Dump results to file
-csvdump(probs, scores, CMD_ARGS)
+csvdump(probs, scores, tsteps, CMD_ARGS)
 
 @info "Done!"

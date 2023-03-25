@@ -62,6 +62,8 @@ end
 check_ao_trajs(sim_ao, des_ao_traj, lower_bound) = !lower_bound ? sim_ao==des_ao_traj : all(getindex.(sim_ao, Ref(1)) .== getindex.(des_ao_traj, Ref(1)))
 
 function batch_fwd_simulations(pomdp, epochs, des_final_state, b0_testing, des_ao_traj; lower_bound=false, verbose=false, max_t = length(des_ao_traj))
+    isempty(des_ao_traj) && return nothing, 1.0
+    
     init_states = []
     b0 = DiscreteBelief(pomdp, states(pomdp), b0_testing)
 
@@ -102,8 +104,10 @@ end
 
 function validation_probs_and_scores_UCT(TREE, pomdp, max_t, des_final_state, CMD_ARGS; lower_bound=false, verbose=false)
     items = collect(keys(TREE.P))
-    probs = zeros(length(items))
+
+    probs  = zeros(length(items))
     scores = zeros(length(items))
+    tsteps = zeros(length(items))
 
     tab_pomdp = tabulate(pomdp)
     acts = collect(actions(pomdp))
@@ -124,6 +128,7 @@ function validation_probs_and_scores_UCT(TREE, pomdp, max_t, des_final_state, CM
 
         probs[i] = prob
         scores[i] = score
+        tsteps[i] = depth(aos)
     end
-    return probs, scores
+    return probs, scores, tsteps
 end

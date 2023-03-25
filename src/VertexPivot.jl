@@ -13,7 +13,7 @@ end
 function remove_redundant_col(A, B, rank_des)
     for idx in reverse(B)  #keep reverse
         temp = remove(B, idx)
-        AB = A[:,temp];
+        AB = @view A[:,temp];
         if rank(AB) == rank_des
             return temp
         end
@@ -23,7 +23,7 @@ end
 @memoize function extract_vertex(B, LP)
     A, b, c = LP.A, LP.b, LP.c
     b_inds = sort!(collect(B))
-    AB = A[:,b_inds]
+    AB = @view A[:,b_inds]
     @assert size(AB,1) == size(AB,2)    # AB must be square; i.e. B must have rows(A) amount of elements
     xB = AB\b
     x = zeros(length(c))
@@ -38,7 +38,7 @@ end
     n = size(A, 2)
     b_inds = sort(B)
     n_inds = sort!(setdiff(1:n, B))
-    AB = A[:,b_inds]
+    AB = @view A[:,b_inds]
     d, xB = AB\A[:,q], AB\b
 
     current_sol = xB[B .< no_of_states]
@@ -49,7 +49,7 @@ end
         flag, B′ = find_bases(LP, B, rank_des, q, p)
         if flag
             # b_inds = sort!(B′)
-            # AB = A[:,b_inds]
+            # AB = @view A[:,b_inds]
             # xB = AB\b
             # temp_sol = xB[B′ .< no_of_states]
             # temp_vertex = B′[B′ .< no_of_states]
@@ -95,7 +95,7 @@ function find_bases(LP, B, rank_des, q, p)
     V = remove(V, p)
     for idx = length(V) : -1 : 1  #keep reverse
         temp = vcat(B, [V[idx]])
-        AB = A[:,temp];
+        AB = @view A[:,temp];
         if rank(AB) == rank_des
             return (true, sort(B))
         end
@@ -171,3 +171,139 @@ function get_valid_partition(A, X)
         return sort(B)
     end
 end
+
+
+# function get_valid_partition(A, X)
+#     # 1. Instead of adding columns, remove them one by one.
+#     # or 2. Solve an auxiliary LP that find you which columns (of amount size(A,1)) that 
+#     # should be chosen s.t. the chosen columns are linearly independent. 
+# end
+
+
+# function get_valid_auxiliary_partition(A, b, X, LP_Solver)
+#     model = Model(LP_Solver)
+
+#     (m, n) = size(A);
+#     # Z = diagm(vec(b .>= 0.0) - vec(b .< 0.0));
+    
+#     # @variable(model, x[1:n] >= 0);
+#     @variable(model, z[1:m] >= 0);
+    
+#     # @constraint(model, A*x + Z*z .== b);
+#     @objective(model, Max, sum([z*i for ]));
+#     # optimize!(model);
+
+
+# end
+
+
+function get_valid_partition_aux(A, X)
+    """ Find the indices of a valid partition on the optimal poligon. """
+    # @assert rank(A) == size(A, 1)    # matrix A must be full-rank
+
+    # Get non-zero vertex indices
+    ϵ = 1e-10
+    B = (1:length(X))[abs.(JuMP.value.(X)) .> ϵ]
+    AB = @view A[:,B];
+    rAB = rank(AB)
+
+
+    if length(B) == size(A, 1)
+        return B
+    else
+        while rAB != size(A, 1)
+            # Add zero vertices as required
+            V = collect(1:length(X))
+            deleteat!(V, B)
+            
+            # Compute the rank-revealing QR factorization of the default AB
+            AB = A[:,B];
+            Q, R = qr(AB, Val(false));
+
+            # Find most promising vertices
+            Avs = A[:,V];
+            ys = Q' * Avs;
+            prenorm = Avs - Q * ys;
+            num_of_cols_needed = size(A,1) - rAB
+            v_idxs = partialsortperm(vec(L2_norm(prenorm)), 1:num_of_cols_needed, rev=true)
+            
+            # Construct new AB matrix
+            temp = vcat(B, V[v_idxs])
+            B = sort(temp)
+            AB = A[:,B];
+            rAB = rank(AB)
+        end
+    end
+
+    if rAB == size(AB,2)  # no redundant vertices, great job!
+        return B
+    end
+
+    not_to_be_removed = (1:length(X))[abs.(JuMP.value.(X)) .> ϵ]
+    V = copy(B)
+    setdiff!(V, not_to_be_removed)
+
+    V_removed = []
+
+    while rAB != size(AB,2)  # AB needs to be a full-rank square matrix
+
+        AV = A[:,V];
+        Q, R = qr(AV' * AV, Val(false));
+        # @show length(V), size(AV' * AV)
+
+        # global VR = V_removed
+        # global VV = V
+        # global RR = R
+
+        abs_diagR = abs.(diag(R))
+        # v_val = nothing
+        # while true
+        #     # idx_of_V = rand((1:length(abs_diagR))[abs_diagR .== minimum(abs_diagR)])  # but not in V_removed
+        #     idx_of_V = argmin(abs_diagR)  # but not in V_removed
+
+        spR = sortperm(abs_diagR)  # argmin is first, argmax is last element
+        v_vals = V[spR]
+        ff = findfirst(map(x-> !(x in V_removed), v_vals))
+        v_val = v_vals[ff]
+
+        #     if !(v_val in V_removed)
+        #         # @show abs_diagR[idx_of_V]
+        #         break
+        #     else
+        #         deleteat!(abs_diagR, idx_of_V)
+        #         @show length(abs_diagR)
+        #     end 
+        # end
+
+        temp = A[:, B[B.!=v_val]];  # AB without column `v_val`
+        rTemp = rank(temp)
+
+        # @show v_val, length(V), length(B), size(temp)
+        # @show length(V_removed)
+        # @show rTemp, rAB
+
+        
+        if rTemp == rAB
+            V = remove(V, v_val);
+            B = remove(B, v_val)
+            # @show length(V)
+            rAB = rTemp
+        else
+            push!(V_removed, v_val)
+            # @show "Removed", v_val
+        end
+
+
+        # # DEBUG
+        # if length(V)<=1185
+        #     error("Sth happened")
+        # end
+        
+        rAB == length(B) && return B  # return if AB is now square
+
+    # @show length(V_removed)
+    # @show "---------------------------"
+    end
+    return B
+end
+

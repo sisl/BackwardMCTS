@@ -210,7 +210,7 @@ function validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, �
     # @show J
     # @warn "aa"
     LP = LinearProgram(A, b, c, X, no_of_states, Set(), αj);
-    B = get_valid_partition(A, X);
+    B = get_valid_partition_aux(A, X);
 
     @suppress get_polygon_vertices!(B, LP);
     @suppress remove_polygon_vertices!(LP, Γ, αj);

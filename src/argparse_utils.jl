@@ -25,9 +25,13 @@ function parse_commandline()
             arg_type = Float64
             default = 1.0
 
-        "--timesteps"
+        "--max_timesteps"
             arg_type = Int
             default = 4
+
+        "--rollout_random"
+            arg_type = Bool
+            default = true
 
         "--val_epochs"
             arg_type = Int
