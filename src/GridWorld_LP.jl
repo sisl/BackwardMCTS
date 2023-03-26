@@ -29,7 +29,10 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
     no_of_states = length(β_t)
     slack_var = 1.0
 
-    model = Model(LP_Solver)
+    model = Model(() -> Gurobi.Optimizer(LP_Solver.model))
+
+    set_silent(model)  # no verbose 
+    set_optimizer_attribute(model, "Threads", 1)  # single Gurobi call should use single thread 
 
     @variable(model, x[1:no_of_states])
     @variable(model, u[1:no_of_states])
@@ -63,7 +66,7 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
     
     # print(model)
     optimize!(model)
-    @show termination_status(model)
+    # @show termination_status(model)
     
     if termination_status(model) == JuMP.MathOptInterface.INFEASIBLE || termination_status(model) == JuMP.MathOptInterface.OTHER_ERROR || termination_status(model) == JuMP.MathOptInterface.INFEASIBLE_OR_UNBOUNDED
         return zeros(1,no_of_states), Inf, nothing
@@ -74,8 +77,8 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
         return solutions_x, JuMP.objective_value(model)
 
     else    # there is only 1 solution to the LP
-        @show JuMP.value.(x)
-        @show JuMP.value.(y)
+        # @show JuMP.value.(x)
+        # @show JuMP.value.(y)
         return JuMP.value.(x), JuMP.objective_value(model), model
     end
 end

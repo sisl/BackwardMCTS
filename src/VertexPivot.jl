@@ -116,15 +116,15 @@ end
     b_inds = B
     n_inds = setdiff(1:n, B)
     AB, AV = A[:,b_inds], A[:,n_inds]
-    @show(size(AB))
+    # @show(size(AB))
     # AB = AB .+ 1e-6*LinearAlgebra.I(size(A,1))
     xB = AB\b
     cB = c[b_inds]
     λ = AB' \ cB
     cV = c[n_inds]
     μV = cV - AV'*λ
-    @show λ
-    @show μV
+    # @show λ
+    # @show μV
 
     # current_sol = xB[B .< no_of_states]
     # current_vertex = B[B .< no_of_states]
@@ -271,7 +271,7 @@ function get_valid_partition_aux(A, X)
         #         break
         #     else
         #         deleteat!(abs_diagR, idx_of_V)
-        #         @show length(abs_diagR)
+        #         # @show length(abs_diagR)
         #     end 
         # end
 

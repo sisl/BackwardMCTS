@@ -9,6 +9,9 @@ using Distributions: TriangularDist
 using StatsBase: sample, Weights
 using Suppressor
 using JLD
+using DataStructures: DefaultDict
+using StatsBase: sample, Weights
+using Parameters: @with_kw
 
 Tqdm(obj) = length(obj) == 1 ? obj : ProgressBars.tqdm(obj)
 
@@ -62,6 +65,10 @@ end
 function normalize!(A::AbstractArray)
     A[:] = A ./ sum(A, dims=1)
 end
+
+""" Get a list of items from a Dict or DefaultDict. """
+getd(d::Union{Dict, DefaultDict}, k::Union{Set, AbstractArray}) = getindex.(Ref(d), k)
+
 
 remove(list, item) = list[list .!= item]
 

@@ -33,7 +33,10 @@ function validate(O, T, Γ, αj, β_t, LP_Solver_model, z_val)
     # @variable(model, m[1:no_of_states])
     # @variable(model, n[1:no_of_states])
     
-    model = Model(LP_Solver_model)
+    model = Model(() -> Gurobi.Optimizer(LP_Solver_model))
+
+    set_silent(model)  # no verbose 
+    set_optimizer_attribute(model, "Threads", 1)  # single Gurobi call should use single thread 
     
     no_of_LP_vars = 4 * no_of_states + 4 + 1
     @variable(model, X[1 : no_of_LP_vars])
@@ -123,7 +126,7 @@ function validate(O, T, Γ, αj, β_t, LP_Solver_model, z_val)
     
     # print(model)
     optimize!(model)
-    @show termination_status(model)
+    # @show termination_status(model)
     
     if termination_status(model) == JuMP.MathOptInterface.INFEASIBLE || termination_status(model) == JuMP.MathOptInterface.OTHER_ERROR || termination_status(model) == JuMP.MathOptInterface.INFEASIBLE_OR_UNBOUNDED
         return zeros(1,no_of_states), Inf, A, b, c
@@ -136,7 +139,10 @@ end
 function get_z_high(O, T, Γ, αj, β_t, LP_Solver_model)
     no_of_states = length(β_t)
 
-    model = Model(LP_Solver_model)
+    model = Model(() -> Gurobi.Optimizer(LP_Solver_model))
+    
+    set_silent(model)  # no verbose 
+    set_optimizer_attribute(model, "Threads", 1)  # single Gurobi call should use single thread 
 
     @variable(model, x[1:no_of_states])
     @variable(model, z)
@@ -192,13 +198,13 @@ function validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, �
     # global TT = T
     # @show (obs_id, αj)
     
-    z_high = @suppress get_z_high(O, T, Γ, αj, β_next, LP_Solver.model)
+    z_high = get_z_high(O, T, Γ, αj, β_next, LP_Solver.model)
     if z_high == 0.0
         return nothing
     end
 
     z_val = rand(LP_Solver.z_dist_exp, z_high)
-    X, J, A, b, c = @suppress validate(O, T, Γ, αj, β_next, LP_Solver.model, z_val)
+    X, J, A, b, c = validate(O, T, Γ, αj, β_next, LP_Solver.model, z_val)
     # push!.(Ref(Vals), (:X, :J, :A, :b, :c).=>(X, J, A, b, c))
 
 
@@ -212,8 +218,8 @@ function validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, �
     LP = LinearProgram(A, b, c, X, no_of_states, Set(), αj);
     B = get_valid_partition_aux(A, X);
 
-    @suppress get_polygon_vertices!(B, LP);
-    @suppress remove_polygon_vertices!(LP, Γ, αj);
+    get_polygon_vertices!(B, LP);
+    remove_polygon_vertices!(LP, Γ, αj);
     if !with_J
         return LP
     else
@@ -308,7 +314,7 @@ end
 
 
 @memoize function remove_polygon_vertices!(LP, Γ, act)
-    @show act
+    # @show act
     ϵ = 1e-10
     for B in LP.vertices
         x_star = extract_vertex(B, LP)

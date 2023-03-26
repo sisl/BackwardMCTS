@@ -2,9 +2,6 @@ include("utils.jl")
 include("VertexPivot.jl")
 include("GridWorld_LP_matrix.jl")
 
-using DataStructures: DefaultDict
-using StatsBase: sample, Weights
-using Parameters: @with_kw
 
 @with_kw mutable struct BackwardTree
     AO = Set{Tuple}()                                                   # histories of (a,o,...)
@@ -21,12 +18,23 @@ end
 BackwardTree(max_t) = BackwardTree(T=Dict(i=>Set{Tuple}() for i=0:max_t))
 Base.length(T::BackwardTree) = length(T.P)
 
-# Get a list of items from a Dict or DefaultDict.
-getd(d::Union{Dict, DefaultDict}, k::Union{Set, AbstractArray}) = getindex.(Ref(d), k)
-
 depth(hist::Tuple) = length(hist)÷2 - 1   # integer division: ÷
 
 UCB1(TREE, exploration_const, oh, aoh) = aoh in TREE.AO ? TREE.Q[aoh] + exploration_const*sqrt(log(TREE.N[oh]) / TREE.N[aoh]) : Inf
+
+function merge_trees!(master, branch)
+    # TODO: Q and N should not be merged. N should be added. But what about Q?
+    # TODO: P should not be merged, there are repeating keys. Also, round the beliefs to 6 digits?
+    union!(master.AO, branch.AO)
+    merge!(master.T,  branch.T)
+    
+    merge!(master.β,  branch.β)
+    merge!(master.Q,  branch.Q)
+    merge!(master.N,  branch.N)
+    
+    merge!(master.P,  branch.P)
+    return master
+end
 
 function UCT_action(TREE, exploration_const, actions_pomdp, obs, hist)
     vals = map(a -> UCB1(TREE, exploration_const, (obs, hist...), (a, obs, hist...)), actions_pomdp)
@@ -150,7 +158,8 @@ function rollout(TREE, β, h, Params)
 end
 
 
-function search!(pomdp, policy, β_final, max_t, LP_Solver, no_of_simulations=5, exploration_const=1.0, rollout_random=false)
+function search!(pomdp, policy, β_final, max_t, LP_Solver, sims_per_thread, no_of_threads, exploration_const=1.0, rollout_random=false)
+    
     tab_pomdp = tabulate(pomdp)
     actions_pomdp = actions(pomdp)
 
@@ -163,9 +172,24 @@ function search!(pomdp, policy, β_final, max_t, LP_Solver, no_of_simulations=5,
 
     for t = 1:max_t
         println("  Timestep:\t  $(t) of $(max_t)")
-        for m = Tqdm(1:no_of_simulations)
-            empty_flag, β, h = sample_node(TREE, t-1)
-            !empty_flag ? simulate_node!(TREE, Params, β, h) : return TREE
+
+        for trd = Tqdm(1:sims_per_thread)
+            localtrees = Array{BackwardTree}(undef, no_of_threads)  # undef initialization
+
+            Threads.@threads for m = 1:no_of_threads
+
+                # Initialize tree with single leaf node
+                m_Tree = deepcopy(TREE)
+                push!(m_Tree, belief=β_final, hist=(:end, -1))
+        
+                empty_flag, β, h = sample_node(m_Tree, t-1)
+                !empty_flag ? simulate_node!(m_Tree, Params, β, h) : BackwardTree()
+                localtrees[m] = m_Tree
+            end
+
+            @time merge_trees!.(Ref(TREE), localtrees)
+            @show length(TREE)
+
         end
     end
     

@@ -7,7 +7,7 @@ function parse_commandline()
     @add_arg_table! s begin
         "--gridsize"
             arg_type = Int
-            default = 6
+            default = 5
 
         "--t_and_o_prob"
             arg_type = Float64
@@ -17,17 +17,21 @@ function parse_commandline()
             arg_type = Float64
             default = 3.0
 
-        "--no_of_simulations"
-            arg_type = Int
-            default = 100
-
         "--exploration_const"
             arg_type = Float64
             default = 1.0
 
+        "--sims_per_thread"
+            arg_type = Int
+            default = 5
+
+        "--no_of_threads"
+            arg_type = Int
+            default = Threads.nthreads()-1 
+
         "--max_timesteps"
             arg_type = Int
-            default = 4
+            default = 1
 
         "--rollout_random"
             arg_type = Bool
