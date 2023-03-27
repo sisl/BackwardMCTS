@@ -1,4 +1,4 @@
-@info "Using $(Threads.nthreads()) threads."
+@info "Detected $(Threads.nthreads()) threads."
 
 include("utils.jl")
 include("gridworldpomdp.jl")

@@ -67,10 +67,17 @@ function normalize!(A::AbstractArray)
 end
 
 """ Get a list of items from a Dict or DefaultDict. """
-getd(d::Union{Dict, DefaultDict}, k::Union{Set, AbstractArray}) = getindex.(Ref(d), k)
+getd(d::Union{Dict, DefaultDict}, k::Union{Base.KeySet, Set, AbstractArray}) = getindex.(Ref(d), k)
 
 
 remove(list, item) = list[list .!= item]
+
+# Returns float zero if result was actually NaN.
+function no_nan_division(a::Number,b::Number)
+    res = a/b
+    @assert !isinf(res) "Result when to infinity! a,b: $a, $b"
+    return (isnan(res) ? 0.0 : res)
+end
 
 function csvdump(probs, scores, tsteps, CMD_ARGS)
     f = pop!(CMD_ARGS, :savename) * ".csv"
@@ -92,6 +99,13 @@ struct BeliefRecord
     β
     ao
 end
+
+# belief_record(β, ao, rounded=true) = rounded ? BeliefRecord(round.(β, digits=6), ao) : BeliefRecord(β, ao)
+
+# Enforce Dict has unique keys when keys <: BeliefRecord.
+Base.isequal(t1::BeliefRecord, t2::BeliefRecord) = (t1.β == t2.β) && (t1.ao == t2.ao)
+Base.hash(t::BeliefRecord) = Base.hash([t.β..., t.ao...])
+
 
 struct CappedExponential
     vals

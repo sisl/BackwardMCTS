@@ -267,7 +267,7 @@ function sample_from_belief_subspace(LP, tab_pomdp, obs_id)
     n = size(X_stars, 2)
     # @show n
     if n==1
-        return vec(X_stars)
+        return round.(vec(X_stars); digits=6)
     else
         # dirc = Dirichlet(ones(n))
         denom = minimum(X_stars_rchblty_probs)
@@ -276,7 +276,7 @@ function sample_from_belief_subspace(LP, tab_pomdp, obs_id)
         dirc = Dirichlet(X_stars_rchblty_probs / denom)
         w = normalize(rand(dirc))
         s = X_stars * w
-        return s
+        return round.(s; digits=6)
     end
 end
 

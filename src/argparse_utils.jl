@@ -23,15 +23,15 @@ function parse_commandline()
 
         "--sims_per_thread"
             arg_type = Int
-            default = 5
+            default = 10
 
         "--no_of_threads"
             arg_type = Int
-            default = Threads.nthreads()-1 
+            default = max(1, Threads.nthreads()-1) 
 
         "--max_timesteps"
             arg_type = Int
-            default = 1
+            default = 4
 
         "--rollout_random"
             arg_type = Bool
