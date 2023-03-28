@@ -32,9 +32,8 @@ policy = solve(solver, tab_pomdp)
 Γ = policy.alphas
 
 # Create leaf belief
-β_final = zeros(no_of_states,)
-des_final_state = GWPos(3,1)
-β_final[3] = 1.0
+final_state = GWPos(3,1)
+β_final = get_leaf_belief(pomdp, final_state)
 
 # Create BMCTS
 max_t = CMD_ARGS[:max_timesteps]
@@ -45,7 +44,7 @@ TREE = search!(pomdp, policy, β_final, max_t, LP_Solver, getd(CMD_ARGS, [:sims_
 saveTree(TREE, CMD_ARGS[:savename])
 
 # Validate BMCTS nodes
-probs, scores, tsteps = validation_probs_and_scores_UCT(TREE, pomdp, max_t, des_final_state, CMD_ARGS, lower_bound=false)
+probs, scores, tsteps = validation_probs_and_scores_UCT(TREE, pomdp, max_t, final_state, CMD_ARGS, lower_bound=false)
 
 # Dump results to file
 csvdump(probs, scores, tsteps, CMD_ARGS)

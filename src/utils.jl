@@ -27,6 +27,15 @@ average(A) = length(A) == 0 ? 0.0 : mean(A)
 flatten(A) = collect(Iterators.flatten(A))
 flatten_twice(A) = flatten(flatten(A))
 
+# Get sink leaf belief, given its location in the grid world.
+function get_leaf_belief(pomdp, final_state)
+    no_of_states = length(states(pomdp))
+    gs = pomdp.size[1]
+    β_final = zeros(no_of_states,)
+    β_final[final_state[1] + gs*(final_state[2]-1)] = 1.0
+    return β_final
+end
+
 function nonzero(A)
     idx = A .!= 0.0
     elems = 1:length(A)
@@ -80,7 +89,8 @@ function no_nan_division(a::Number,b::Number)
 end
 
 function csvdump(probs, scores, tsteps, CMD_ARGS)
-    f = pop!(CMD_ARGS, :savename) * ".csv"
+    mkpath("../runs/")  # mkdir if it doesn't exist
+    f = "../runs/" * pop!(CMD_ARGS, :savename) * ".csv"
 
     perm = sortperm(string.(keys(CMD_ARGS)))
     header = reshape(collect(string.(keys(CMD_ARGS)))[perm], 1, :)
@@ -99,8 +109,6 @@ struct BeliefRecord
     β
     ao
 end
-
-# belief_record(β, ao, rounded=true) = rounded ? BeliefRecord(round.(β, digits=6), ao) : BeliefRecord(β, ao)
 
 # Enforce Dict has unique keys when keys <: BeliefRecord.
 Base.isequal(t1::BeliefRecord, t2::BeliefRecord) = (t1.β == t2.β) && (t1.ao == t2.ao)
@@ -180,8 +188,8 @@ end
 isValidProb(A::AbstractArray) = all.(eachcol(A.>0)) .& all.(eachcol(A.<1))
 
 
-saveTree(T, fname) = @suppress JLD.save(fname*".jld", "tree", T)
-loadTree(fname) = @suppress JLD.load(fname*".jld")["tree"]
+saveTree(T, fname) = @suppress JLD.save("../runs/" * fname * ".jld", "tree", T)
+loadTree(fname) = @suppress JLD.load("../runs/" * fname * ".jld")["tree"]
 
 # Check if item is in dict or keys(dict)
 Base.in(item::BeliefRecord, keys::Base.KeySet{BeliefRecord,Dict{BeliefRecord,Float64}}) = any(Ref(item) .≂ keys)
