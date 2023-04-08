@@ -197,7 +197,7 @@ end
 # end
 
 
-function get_valid_partition_aux(A, X)
+function get_valid_partition_aux(A, X; verbose=false)
     """ Find the indices of a valid partition on the optimal poligon. """
     # @assert rank(A) == size(A, 1)    # matrix A must be full-rank
 
@@ -244,55 +244,51 @@ function get_valid_partition_aux(A, X)
     setdiff!(V, not_to_be_removed)
 
     V_removed = []
+    rand_aux_flag = false
 
     while rAB != size(AB,2)  # AB needs to be a full-rank square matrix
+        
+        if !rand_aux_flag
+            AV = A[:,V];
+            Q, R = qr(AV' * AV, Val(false));
 
-        AV = A[:,V];
-        Q, R = qr(AV' * AV, Val(false));
-        # @show length(V), size(AV' * AV)
+            # global VR = V_removed
+            # global VV = V
+            # global RR = R
 
-        # global VR = V_removed
-        # global VV = V
-        # global RR = R
+            abs_diagR = abs.(diag(R))
 
-        abs_diagR = abs.(diag(R))
-        # v_val = nothing
-        # while true
-        #     # idx_of_V = rand((1:length(abs_diagR))[abs_diagR .== minimum(abs_diagR)])  # but not in V_removed
-        #     idx_of_V = argmin(abs_diagR)  # but not in V_removed
+            spR = sortperm(abs_diagR)  # argmin is first, argmax is last element
+            v_vals = V[spR]
+            ff = findfirst(map(x-> !(x in V_removed), v_vals))
+            v_val = v_vals[ff]
 
-        spR = sortperm(abs_diagR)  # argmin is first, argmax is last element
-        v_vals = V[spR]
-        ff = findfirst(map(x-> !(x in V_removed), v_vals))
-        v_val = v_vals[ff]
-
-        #     if !(v_val in V_removed)
-        #         # @show abs_diagR[idx_of_V]
-        #         break
-        #     else
-        #         deleteat!(abs_diagR, idx_of_V)
-        #         # @show length(abs_diagR)
-        #     end 
-        # end
+        else
+            v_val = rand(setdiff(V, V_removed))
+        end
 
         temp = @view A[:, B[B.!=v_val]];  # AB without column `v_val`
         rTemp = rank(temp)
 
-        # @show v_val, length(V), length(B), size(temp)
-        # @show length(V_removed)
-        # @show rTemp, rAB
-
+        if verbose
+            @show v_val, length(V), length(B), size(temp)
+            @show rTemp, rAB
+            @show length(V_removed), rand_aux_flag
+            @show "---------------------------"
+        end
         
         if rTemp == rAB
             V = remove(V, v_val);
             B = remove(B, v_val)
-            # @show length(V)
             rAB = rTemp
         else
             push!(V_removed, v_val)
-            # @show "Removed", v_val
+            # rand_aux_flag = true
         end
-
+        
+        if length(V_removed) > length(V) * 0.01
+            rand_aux_flag = true
+        end
 
         # # DEBUG
         # if length(V)<=1185
@@ -301,8 +297,6 @@ function get_valid_partition_aux(A, X)
         
         rAB == length(B) && return B  # return if AB is now square
 
-    # @show length(V_removed)
-    # @show "---------------------------"
     end
     return B
 end
