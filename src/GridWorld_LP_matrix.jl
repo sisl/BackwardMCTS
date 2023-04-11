@@ -199,7 +199,7 @@ function validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, �
     # @show (obs_id, αj)
     
     z_high = get_z_high(O, T, Γ, αj, β_next, LP_Solver.model)
-    if z_high == 0.0
+    if (z_high == 0.0)
         return nothing
     end
 
@@ -217,6 +217,10 @@ function validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, �
     # @warn "aa"
     LP = LinearProgram(A, b, c, X, no_of_states, Set(), αj);
     B = get_valid_partition_aux(A, X; verbose=false);
+
+    if isnothing(B)
+        return nothing
+    end
 
     get_polygon_vertices!(B, LP);
     remove_polygon_vertices!(LP, Γ, αj);
