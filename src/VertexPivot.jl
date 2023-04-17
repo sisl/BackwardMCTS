@@ -14,7 +14,7 @@ function remove_redundant_col(A, B, rank_des)
     for idx in reverse(B)  #keep reverse
         temp = remove(B, idx)
         AB = @view A[:,temp];
-        if rank(AB) == rank_des
+        if saferank(AB) == rank_des
             return temp
         end
     end
@@ -79,13 +79,13 @@ function find_bases(LP, B, rank_des, q, p)
     V = remove(V, q)
 
     # see if by just swapping q and p, we can have full-rank
-    if rank(@view A[:,B]) == rank_des
+    if saferank(@view A[:,B]) == rank_des
         return (true, B)
 
     # see if with q and p coexisting, we can have full-rank
     else
         push!(B, p)
-        if rank(@view A[:,B]) == rank_des
+        if saferank(@view A[:,B]) == rank_des
             B = remove_redundant_col(A, B, rank_des)
             return (true, B)
         end 
@@ -96,7 +96,7 @@ function find_bases(LP, B, rank_des, q, p)
     for idx = length(V) : -1 : 1  #keep reverse
         temp = vcat(B, [V[idx]])
         AB = @view A[:,temp];
-        if rank(AB) == rank_des
+        if saferank(AB) == rank_des
             return (true, sort(B))
         end
     end
@@ -247,16 +247,19 @@ function get_valid_partition_aux(A, X; verbose=false)
     rand_aux_flag = false
 
     while rAB != size(AB,2)  # AB needs to be a full-rank square matrix
+
+        # global VR = V_removed
+        # global VV = V
+        # global AA = A
+        # global BB = B
         
         if !rand_aux_flag
             AV = A[:,V];
             Q, R = qr(AV' * AV, Val(false));
 
-            # global VR = V_removed
-            # global VV = V
-            # global RR = R
-
             abs_diagR = abs.(diag(R))
+
+            # global RR = R
 
             spR = sortperm(abs_diagR)  # argmin is first, argmax is last element
             v_vals = V[spR]
@@ -264,27 +267,50 @@ function get_valid_partition_aux(A, X; verbose=false)
             v_val = v_vals[ff]
 
         else
-            v_val = rand(setdiff(V, V_removed))
+            sample_set = setdiff(V, V_removed)
+            isempty(sample_set) && return nothing
+            v_val = rand(sample_set)
         end
 
-        temp = @view A[:, B[B.!=v_val]];  # AB without column `v_val`
-        rTemp = rank(temp)
-
-        if verbose
-            @show v_val, length(V), length(B), size(temp)
-            @show rTemp, rAB
-            @show length(V_removed), rand_aux_flag
-            @show "---------------------------"
-        end
+        global AA = A
+        global BB = B
+        global VV = v_val
         
-        if rTemp == rAB
-            V = remove(V, v_val);
-            B = remove(B, v_val)
-            rAB = rTemp
-        else
+        
+        temp = A[:, B[B.!=v_val]];  # AB without column `v_val`
+        # rTemp = rank(temp)
+        
+        # println("Trying issingular(temp).")
+        if issingular(temp)
             push!(V_removed, v_val)
-            # rand_aux_flag = true
+        else
+            # println("Trying rank(temp).")
+            # println("Cond value of temp: $(cond(temp))")  # don't enable this!
+            rTemp = rank(temp)
+            if rTemp == rAB
+                V = remove(V, v_val);
+                B = remove(B, v_val)
+                # rAB = rTemp
+            else
+                push!(V_removed, v_val)
+                # rand_aux_flag = true
+            end
         end
+        # println("Passed both $(now()).")
+        # @show "---------------------------"
+
+
+
+        # rTemp = rank(temp)
+        # if !isfullrank(temp)
+        #     push!(V_removed, v_val)
+        #     # rand_aux_flag = true
+        # else
+        #     if rTemp == rAB
+        #         V = remove(V, v_val)
+        #         B = remove(B, v_val)
+        #     end
+        # end
         
         if length(V_removed) > length(V) * 0.01
             rand_aux_flag = true
@@ -294,6 +320,13 @@ function get_valid_partition_aux(A, X; verbose=false)
         # if length(V)<=1185
         #     error("Sth happened")
         # end
+
+        if verbose
+            @show v_val, length(V), length(B), size(temp)
+            # @show rank(temp), !isfullrank(temp), rAB
+            @show length(V_removed), rand_aux_flag
+            @show "---------------------------"
+        end
         
         rAB == length(B) && return B  # return if AB is now square
 

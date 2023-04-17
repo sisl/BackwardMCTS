@@ -1,6 +1,6 @@
 include("argparse_utils.jl")
 
-using LinearAlgebra: Diagonal, dot, rank, diag, norm, transpose, qr
+using LinearAlgebra: Diagonal, dot, svd, cond, rank, diag, norm, transpose, qr, LAPACK.getrf!, checknonsingular, SingularException
 using Statistics: mean, std
 using DelimitedFiles
 using ProgressBars
@@ -12,6 +12,7 @@ using JLD
 using DataStructures: DefaultDict
 using StatsBase: sample, Weights
 using Parameters: @with_kw
+using Dates: now
 
 Tqdm(obj) = length(obj) == 1 ? obj : ProgressBars.tqdm(obj)
 
@@ -178,6 +179,39 @@ end
 
 isValidProb(A::AbstractArray) = all.(eachcol(A.>0)) .& all.(eachcol(A.<1))
 
+# function issingular(A::AbstractArray)
+#     # lpt = getrf!(A)
+#     try 
+#         # checknonsingular(lpt[3])
+#         inv(A)
+#     catch e
+#         (e isa SingularException) && return true
+#     end
+#     return false
+# end
+
+function issingular(A::AbstractArray)
+    try
+        singularvals = (svd(A)).S
+        if minimum(singularvals) < 10*eps()
+            return true
+        else
+            return false
+        end
+        
+    catch
+        return true
+    end
+end
+
+# Finds the rank of `A` safely. 
+function saferank(A::AbstractArray)
+    if issingular(A)
+        return 0
+    else
+        return rank(A)
+    end
+end
 
 saveTree(T, fname) = @suppress JLD.save("../runs/" * fname * ".jld", "tree", T)
 loadTree(fname) = @suppress JLD.load("../runs/" * fname * ".jld")["tree"]
@@ -191,3 +225,105 @@ ste(A::AbstractArray) = std(A) / sqrt(length(A))
 
 # Mean Absolute Error
 mae(A::AbstractArray) = sum(abs.(A)) / length(A)
+
+
+
+
+
+
+# function myfunction()
+#     rank(rand(4000,4000))
+# end
+
+# function run_with_timeout(f::Function, timeout::Real)
+#     res = nothing
+#     task = @async begin
+#         res = try
+#             @timed f()
+#         catch e
+#             e
+#         end
+#     end
+#     sleep(timeout)
+#     if istaskfailed(task)
+#         error("function timed out after $timeout seconds")
+#     else
+#         return res
+#     end
+# end
+
+# @time result = run_with_timeout(myfunction, 3.0)
+
+
+
+
+
+# macro timeout(seconds, expr)
+#     quote
+#         tsk = @task $expr
+#         schedule(tsk)
+#         Timer($seconds) do timer
+#             istaskdone(tsk) || Base.throwto(tsk, InterruptException())
+#         end
+#         try
+#             fetch(tsk)
+#         catch _ 
+#             # (e isa InterruptException) ? (@warn "Call timed out.") : rethrow(e)
+#             @warn "Task not completed."
+#         end
+#     end
+# end
+
+# x = @timeout 1 begin
+#     sleep(1.1)
+#     return :myresults
+#     end
+
+# foo = @timeout 1 begin rand(4000000,80); end;
+
+
+
+
+
+
+
+
+
+
+
+# macro timeout(seconds, expr, fail)
+#     quote
+#         tsk = @task $expr
+#         schedule(tsk)
+#         Timer($seconds) do timer
+#             istaskdone(tsk) || Base.throwto(tsk, InterruptException())
+#         end
+#         try
+#             fetch(tsk)
+#         catch _
+#             $fail
+#         end
+#     end
+# end
+
+# @time x = @timeout 1 begin
+#     # sleep(1.1)
+#     return rand(4000000,80);
+#     end "failed"
+
+
+
+
+
+# function timeout(f, args, seconds, fail)
+#     tsk = @task f(args...)
+#     schedule(tsk)
+#     Timer(seconds) do timer
+#         istaskdone(tsk) || Base.throwto(tsk, InterruptException())
+#     end
+#     try
+#         fetch(tsk)
+#     catch _;
+#         fail
+#     end
+# end
