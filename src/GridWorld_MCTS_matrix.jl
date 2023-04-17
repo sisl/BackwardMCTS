@@ -201,11 +201,8 @@ function merge_trees!(master::BackwardTree, localtrees::AbstractVector{BackwardT
 end
 
 
-function search!(pomdp, policy, β_final, max_t, LP_Solver, sims_per_thread, no_of_threads, exploration_const=1.0, rollout_random=false)
+function search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, sims_per_thread, no_of_threads, exploration_const=1.0, rollout_random=false)
     
-    tab_pomdp = tabulate(pomdp)
-    actions_pomdp = actions(pomdp)
-
     Params = Dict([:policy, :max_t, :LP_Solver, :exploration_const, :rollout_random, :max_t, :tab_pomdp, :actions_pomdp]
                     .=> [policy, max_t, LP_Solver, exploration_const, rollout_random, max_t, tab_pomdp, collect(actions_pomdp)])
 

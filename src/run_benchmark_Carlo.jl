@@ -1,9 +1,9 @@
 @info "Detected $(Threads.nthreads()) threads."
 
 include("utils.jl")
-include("gridworldpomdp.jl")
 include("GridWorld_MCTS_matrix.jl")
 include("Validation_MCTS.jl")
+include("../../Carlo/src/likelihood_learning.jl")
 
 using Gurobi
 using QMDP
@@ -16,14 +16,9 @@ CMD_ARGS = parse_commandline()
 Random.seed!(CMD_ARGS[:noise_seed])
 
 # Create pomdp
-pomdp = SimpleGridWorldPOMDP(size=(CMD_ARGS[:gridsize], CMD_ARGS[:gridsize]),
-                            rewards=Dict(GWPos(2,3)=>-10.0, GWPos(3,1)=>+25.0)
-                            ,
-                            tprob = CMD_ARGS[:t_and_o_prob],
-                            oprob = CMD_ARGS[:t_and_o_prob])
-
-tab_pomdp = tabulate(pomdp)
+pomdp = CarloPOMDP()
 actions_pomdp = actions(pomdp)
+tab_pomdp = tabulate(pomdp; dir="../../Carlo/")
 no_of_actions = length(actions(pomdp))
 no_of_states = length(states(pomdp))
 
@@ -33,7 +28,7 @@ policy = solve(solver, tab_pomdp)
 Γ = policy.alphas
 
 # Create leaf belief
-final_state = GWPos(3,1)
+final_state = CarloDiscreteState(6, 6, :within_limit, :straight)
 β_final = get_leaf_belief(pomdp, final_state)
 
 # Create BMCTS
