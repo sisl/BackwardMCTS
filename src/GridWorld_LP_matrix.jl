@@ -38,7 +38,7 @@ function validate(O, T, Γ, αj, β_t, LP_Solver_model, z_val)
     set_silent(model)  # no verbose 
     set_optimizer_attribute(model, "Threads", 1)  # single Gurobi call should use single thread 
     
-    no_of_LP_vars = 4 * no_of_states + 4 + 1
+    no_of_LP_vars = (4 * no_of_states) + 1 + (length(Γ)-1) + 1   # (x, u, m, n) + y + (g) + r
     @variable(model, X[1 : no_of_LP_vars])
     
     zr = zeros(1, no_of_states);
@@ -74,13 +74,13 @@ function validate(O, T, Γ, αj, β_t, LP_Solver_model, z_val)
     end
     
     A = add_alpha_constraints(A, Γ, αj);
-    b = add_rows(b, [0; 0; 0]);
+    b = add_rows(b, zeros(length(Γ)-1, 1));
     
     
     # L1 norm constraints
     A = add_columns(A, zeros(size(A, 1), 2*no_of_states));
-    A = add_rows(A, [-O*T -Eye β_t zr' zr' zr' Eye Zr]);
-    A = add_rows(A, [-O*T  Eye β_t zr' zr' zr' Zr -Eye]);
+    A = add_rows(A, [-O*T -Eye β_t repeat(zr, length(Γ)-1)' Eye Zr]);
+    A = add_rows(A, [-O*T  Eye β_t repeat(zr, length(Γ)-1)' Zr -Eye]);
     b = add_rows(b, [zr'; zr']);
     
     
@@ -108,7 +108,7 @@ function validate(O, T, Γ, αj, β_t, LP_Solver_model, z_val)
     Oa = reshape(diag(O), 1, :)
     A = add_columns(A, zeros(size(A, 1), 1));
     item = Oa*T - z_val*vn
-    A = add_rows(A, [item zr 0 0 0 0 zr zr -1]);
+    A = add_rows(A, [item zr 0 zeros(1, length(Γ)-1) zr zr -1]);
     b = add_rows(b, [0])
 
 

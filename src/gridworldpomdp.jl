@@ -204,3 +204,12 @@ function POMDPs.convert_a(::Type{Symbol}, vec::V, pomdp::SimpleGridWorldPOMDP) w
     actions(pomdp)[convert(Int, first(vec))]
 end
 
+
+# Get sink leaf belief, given its location in the grid world.
+function get_leaf_belief(pomdp::SimpleGridWorldPOMDP, final_state)
+    no_of_states = length(states(pomdp))
+    gs = pomdp.size[1]
+    β_final = zeros(no_of_states,)
+    β_final[final_state[1] + gs*(final_state[2]-1)] = 1.0
+    return β_final
+end

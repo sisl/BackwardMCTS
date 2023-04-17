@@ -27,15 +27,6 @@ average(A) = length(A) == 0 ? 0.0 : mean(A)
 flatten(A) = collect(Iterators.flatten(A))
 flatten_twice(A) = flatten(flatten(A))
 
-# Get sink leaf belief, given its location in the grid world.
-function get_leaf_belief(pomdp, final_state)
-    no_of_states = length(states(pomdp))
-    gs = pomdp.size[1]
-    β_final = zeros(no_of_states,)
-    β_final[final_state[1] + gs*(final_state[2]-1)] = 1.0
-    return β_final
-end
-
 function nonzero(A)
     idx = A .!= 0.0
     elems = 1:length(A)

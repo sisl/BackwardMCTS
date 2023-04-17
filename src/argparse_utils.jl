@@ -39,7 +39,7 @@ function parse_commandline()
 
         "--val_epochs"
             arg_type = Int
-            default = 100_000
+            default = 1000
 
         "--noise_seed"
             arg_type = Int
