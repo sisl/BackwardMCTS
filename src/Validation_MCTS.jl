@@ -25,7 +25,7 @@ end
 POMDPs.updater(::DefinedPolicy) = NothingUpdater()
 
 function convert_des_ao_traj(pomdp, des_ao_traj)
-    return [(item[1], (states(pomdp))[item[2]]) for item in des_ao_traj if item[1] != :end]
+    return [(item[1], (observations(pomdp))[item[2]]) for item in des_ao_traj if item[1] != :end]
 end
 
 function convert_aos(pomdp, aos)
@@ -35,7 +35,7 @@ function convert_aos(pomdp, aos)
     for idx in 1:len_items
         i = (idx-1)*2 + 1
         a_sym, o = aos[i: i+1]
-        push!(result, (a_sym, states(pomdp)[o]))
+        push!(result, (a_sym, observations(pomdp)[o]))
     end
 
     return result
@@ -46,6 +46,10 @@ function run_fwd_simulation_sao(pomdp, b0, des_ao_traj, max_t; verbose=false)
     simulated_ao = []
     simulated_final_s = nothing
     policy = DefinedPolicy(des_ao_traj)
+    # global PM = tab_pomdp
+    # global POL = policy
+    # global B0 = b0
+    # # tab_pomdp = PM; policy = POL; b0 = B0;
     for (s,sp,a,o,r) in stepthrough(pomdp, policy, updater(policy), b0, rand(b0), "s,sp,a,o,r", max_steps=max_t)
         if verbose
             println("In state $s")
@@ -70,7 +74,7 @@ function batch_fwd_simulations(pomdp, epochs, des_final_state, b0_testing, des_a
     # for e = Tqdm(1:epochs)
     for e = 1:epochs
         sim_s, sim_ao = run_fwd_simulation_sao(pomdp, b0, des_ao_traj, max_t; verbose=verbose)
-        if length(sim_s)==max_t+1 && sim_s[end]==des_final_state && sim_s[1]!=des_final_state && check_ao_trajs(sim_ao, des_ao_traj, lower_bound)
+        if length(sim_s)==max_t+1 && sim_s[end]==des_final_state && check_ao_trajs(sim_ao, des_ao_traj, lower_bound)  # && sim_s[1]!=des_final_state
             push!(init_states, sim_s[1])
         end
     end
@@ -102,15 +106,14 @@ function validation_probs_and_scores(β_levels, pomdp, max_t, des_final_state, C
     return probs, scores
 end
 
-function validation_probs_and_scores_UCT(TREE, pomdp, max_t, des_final_state, CMD_ARGS; lower_bound=false, verbose=false)
+function validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, des_final_state, CMD_ARGS; lower_bound=false, verbose=false)
     items = collect(keys(TREE.P))
 
     probs  = zeros(length(items))
     scores = zeros(length(items))
     tsteps = zeros(length(items))
 
-    tab_pomdp = tabulate(pomdp)
-    acts = collect(actions(pomdp))
+    acts = collect(actions_pomdp)
         
     @info "Using $(Threads.nthreads()) threads.\nBackwardsTree has $(length(items)) nodes."
     Threads.@threads for i = Tqdm(1:length(items)) # (i, belRec) in enumerate(keys(TREE.P))
