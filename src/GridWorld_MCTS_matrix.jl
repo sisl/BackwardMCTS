@@ -23,10 +23,10 @@ depth(hist::Tuple) = length(hist)÷2 - 1   # integer division: ÷
 UCB1(TREE, exploration_const, oh, aoh) = aoh in TREE.AO ? TREE.Q[aoh] + exploration_const*sqrt(log(TREE.N[oh]) / TREE.N[aoh]) : Inf
 
 
-function UCT_action(TREE, exploration_const, actions_pomdp, obs, hist)
+function UCT_action(RNG, TREE, exploration_const, actions_pomdp, obs, hist)
     vals = map(a -> UCB1(TREE, exploration_const, (obs, hist...), (a, obs, hist...)), actions_pomdp)
     max_vals = maximum(vals)
-    return rand((1:length(vals))[vals.==max_vals])
+    return rand(RNG, (1:length(vals))[vals.==max_vals])
 end
 
 function Base.push!(TREE::BackwardTree; hist::Tuple=(), with_time=true, belief::AbstractArray=[])
@@ -42,7 +42,7 @@ function Base.push!(TREE::BackwardTree; hist::Tuple=(), with_time=true, belief::
     end
 end
 
-function sample_obs(β, d, tab_pomdp)
+function sample_obs(RNG, β, d, tab_pomdp)
     # Sample possible observations (with weights)
     nonzero_weights, nonzero_states = nonzero(β)
     obs_weights = weighted_column_sum(nonzero_weights, tab_pomdp.O[:, end, nonzero_states])
@@ -51,19 +51,19 @@ function sample_obs(β, d, tab_pomdp)
     if d==0  # enforce fully-observable for final (sink) state
         return first(obs_samples)
     else
-        return sample(obs_samples, Weights(obs_weights))
+        return sample(RNG, obs_samples, Weights(obs_weights))
     end
 end
 
-function sample_node(TREE, t)
+function sample_node(RNG, TREE, t)
     aos = collect(TREE.T[t])
     isempty(aos) && return true, nothing, nothing
 
-    index = sample(1:length(aos), Weights(getd(TREE.Q, aos)))
-    return false, rand(TREE.β[aos[index]]), aos[index]
+    index = sample(RNG, 1:length(aos), Weights(getd(TREE.Q, aos)))
+    return false, rand(RNG, TREE.β[aos[index]]), aos[index]
 end
 
-function simulate_node!(TREE, Params, β, h)
+function simulate_node!(RNG, TREE, Params, β, h)
     # Save belief, history, and reachability probability
     p = bayesian_prob(Params[:tab_pomdp], Params[:actions_pomdp], β, h)
     belRec = BeliefRecord(β, h)
@@ -77,24 +77,24 @@ function simulate_node!(TREE, Params, β, h)
     end
 
     if !(h in TREE.AO)
-        return rollout(TREE, β, h, Params)
+        return rollout(RNG, TREE, β, h, Params)
     end
 
-    obs = sample_obs(β, depth(h), Params[:tab_pomdp])
-    act = UCT_action(TREE, Params[:exploration_const], Params[:actions_pomdp], obs, h)
+    obs = sample_obs(RNG, β, depth(h), Params[:tab_pomdp])
+    act = UCT_action(RNG, TREE, Params[:exploration_const], Params[:actions_pomdp], obs, h)
     
     oh = (obs, h...)
     aoh = (Params[:actions_pomdp][act], obs, h...)
 
     ## This part is backwards in time (from leaf to root)
     # Get previous belief, given the sampled observation and selected action
-    LP = validate_single_action(Params[:tab_pomdp], obs, Params[:policy], β, Params[:LP_Solver], act)
+    LP = validate_single_action(RNG, Params[:tab_pomdp], obs, Params[:policy], β, Params[:LP_Solver], act)
     if isnothing(LP)
         q = 0.0
         push!(TREE, hist=aoh, with_time=false)
     else
-        β_prev = sample_from_belief_subspace(LP, Params[:tab_pomdp], obs)
-        q = simulate_node!(TREE, Params, β_prev, aoh)
+        β_prev = sample_from_belief_subspace(RNG, LP, Params[:tab_pomdp], obs)
+        q = simulate_node!(RNG, TREE, Params, β_prev, aoh)
         push!(TREE, hist=aoh, belief=β_prev)
     end
 
@@ -107,7 +107,7 @@ function simulate_node!(TREE, Params, β, h)
 end
 
 
-function rollout(TREE, β, h, Params)
+function rollout(RNG, TREE, β, h, Params)
     # Save belief, history, and reachability probability
     p = bayesian_prob(Params[:tab_pomdp], Params[:actions_pomdp], β, h)
     belRec = BeliefRecord(β, h)
@@ -120,28 +120,28 @@ function rollout(TREE, β, h, Params)
         return bayesian_prob(Params[:tab_pomdp], Params[:actions_pomdp], β, h)
     end
 
-    obs = sample_obs(β, depth(h), Params[:tab_pomdp])
+    obs = sample_obs(RNG, β, depth(h), Params[:tab_pomdp])
     
     ## This part is backwards in time (from leaf to root)
     if Params[:rollout_random]
         # Select random action
-        act = rand(1:length(Params[:actions_pomdp]))
-        LP = validate_single_action(Params[:tab_pomdp], obs, Params[:policy], β, Params[:LP_Solver], act)
+        act = rand(RNG, 1:length(Params[:actions_pomdp]))
+        LP = validate_single_action(RNG, Params[:tab_pomdp], obs, Params[:policy], β, Params[:LP_Solver], act)
         if isnothing(LP)
             return 0.0
         end
     
     else
         # Get previous belief, given the sampled observation and selected action
-        act, LP = validate_rollout_actions(Params[:tab_pomdp], obs, Params[:policy], β, Params[:LP_Solver])
+        act, LP = validate_rollout_actions(RNG, Params[:tab_pomdp], obs, Params[:policy], β, Params[:LP_Solver])
         if isnothing(LP)
             return 0.0
         end
     end
 
-    β_prev = sample_from_belief_subspace(LP, Params[:tab_pomdp], obs)
+    β_prev = sample_from_belief_subspace(RNG, LP, Params[:tab_pomdp], obs)
     aoh = (Params[:actions_pomdp][act], obs, h...)
-    return rollout(TREE, β_prev, aoh, Params)
+    return rollout(RNG, TREE, β_prev, aoh, Params)
 end
 
 function merge_trees!(master::BackwardTree, localtrees::AbstractVector{BackwardTree})
@@ -201,7 +201,7 @@ function merge_trees!(master::BackwardTree, localtrees::AbstractVector{BackwardT
 end
 
 
-function search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, sims_per_thread, no_of_threads, exploration_const=1.0, rollout_random=false)
+function search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, noise_seed, sims_per_thread, no_of_threads, exploration_const=1.0, rollout_random=false)
     
     Params = Dict([:policy, :max_t, :LP_Solver, :exploration_const, :rollout_random, :max_t, :tab_pomdp, :actions_pomdp]
                     .=> [policy, max_t, LP_Solver, exploration_const, rollout_random, max_t, tab_pomdp, collect(actions_pomdp)])
@@ -216,12 +216,13 @@ function search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, s
         for trd = Tqdm(1:sims_per_thread)
             localtrees = Array{BackwardTree}(undef, no_of_threads)  # undef initialization
 
-            Threads.@threads for m = 1:no_of_threads
+            # Threads.@threads 
+            for m = 1:no_of_threads
                 # Initialize local tree from the global one
                 m_Tree = deepcopy(TREE)
-        
-                empty_flag, β, h = sample_node(m_Tree, t-1)
-                !empty_flag ? simulate_node!(m_Tree, Params, β, h) : BackwardTree()
+                m_RNG = MersenneTwister(noise_seed + m)
+                empty_flag, β, h = sample_node(m_RNG, m_Tree, t-1)
+                !empty_flag ? simulate_node!(m_RNG, m_Tree, Params, β, h) : BackwardTree()
                 localtrees[m] = m_Tree
             end
 
@@ -233,11 +234,6 @@ function search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, s
     return TREE
 end
 
-
-function unique_elems(S)
-    elems = unique(i -> S[i], 1:length(S))
-    return S[elems], elems
-end
 
 function get_branch_actobs(actions_pomdp, AO_next, obs, programs, belief_samples)
     AO = []
@@ -285,4 +281,44 @@ function bayesian_prob(tab_pomdp, acts, bel, aos)
     #     bp = bayesian_next_belief(tab_pomdp, o, a, bp)
     # end
     return round(prob; digits=5)
+end
+
+function bayesian_prob(tab_pomdp, acts, bel, aos, debug)
+    prob = 1.0
+    bp = bel
+
+    len_items = Int(length(aos) / 2 - 1)
+    for idx in 1:len_items
+        i = (idx-1)*2 + 1
+        a_sym, o = aos[i: i+1]
+        a = findfirst(x->x==a_sym, acts)
+        prob *= branch_weight(tab_pomdp, o, a, bp)
+        bp = bayesian_next_belief(tab_pomdp, o, a, bp)
+        
+        if prob == 0.0
+            return 0.0
+        end
+    end
+    return debug==:debug ? (bp, round(prob; digits=5)) : round(prob; digits=5)
+end
+
+function fetch_nodes(TREE, depth_value)
+    items = collect(keys(TREE.P))
+    
+    ps = []
+    hs = []
+    bs = []
+        
+    for (i, belRec) in enumerate(keys(TREE.P))
+        belRec = items[i]
+        bel, aos = belRec.β, belRec.ao
+        p = TREE.P[belRec]
+
+        if depth(aos)==depth_value
+            push!(ps, p)
+            push!(hs, aos)
+            push!(bs, bel)
+        end
+    end
+    return bs, hs, ps
 end

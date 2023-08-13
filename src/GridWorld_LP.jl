@@ -3,9 +3,6 @@ include("utils.jl")
 using Suppressor
 using JuMP, HiGHS
 using LinearAlgebra: Diagonal, dot, rank
-using Random
-
-Random.seed!(1)
 
 function zeros_except(N::Int, idx::Int)
     res = zeros(N,)

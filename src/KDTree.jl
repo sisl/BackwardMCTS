@@ -33,7 +33,7 @@ Base.length(kdtree::KDTree_and_probs) = length(kdtree.tree.data)
 
 
 
-function benchmark_kdtree(kdtree::KDTree_and_probs, pomdp::POMDP, des_final_state; sigma::Float64, lower_bound=false, verbose=false)
+function benchmark_kdtree(kdtree::KDTree_and_probs, pomdp::POMDP, des_final_state; sigma::Float64, upper_bound=false, verbose=false)
     # Benchmark a consturcted KDTree by perturbing its elements.
     
     tree_probs = zeros(length(kdtree))
@@ -64,7 +64,7 @@ function benchmark_kdtree(kdtree::KDTree_and_probs, pomdp::POMDP, des_final_stat
         bayes_prob = bayesian_prob(tab_pomdp, acts, dp, hist)
 
         # Validation:
-        _, score = batch_fwd_simulations(pomdp, CMD_ARGS[:val_epochs], des_final_state, dp, convert_aos(pomdp, hist), lower_bound=lower_bound, verbose=verbose);
+        _, score = batch_fwd_simulations(pomdp, CMD_ARGS[:val_epochs], des_final_state, dp, convert_aos(pomdp, hist), upper_bound=upper_bound, verbose=verbose);
 
         if verbose
             println("  Item:\t\t  $(i) of $(items) \n  TREE Value:\t  $(p) \n  Approx Prob:\t  $(prob) \n  Lhood Score:\t  $(score) \n  aos:\t  $(aos)")

@@ -17,7 +17,7 @@ end
 DefinedPolicy(action_sequence::AbstractVector) = DefinedPolicy(action_sequence, 0)
 
 ## policy execution ##
-function POMDPs.action(policy::DefinedPolicy, s)
+function POMDPs.action(policy::DefinedPolicy, b)
     policy.current_index += 1
     return policy.action_sequence[policy.current_index][1]  # remove the [1] if `action_sequence` is a flat vector.
 end
@@ -41,16 +41,17 @@ function convert_aos(pomdp, aos)
     return result
 end
 
-function run_fwd_simulation_sao(pomdp, b0, des_ao_traj, max_t; verbose=false)
+function run_fwd_simulation_sao(RNG, pomdp, b0, des_ao_traj, max_t; verbose=false, custom_policy=nothing)
     simulated_s = []
     simulated_ao = []
     simulated_final_s = nothing
-    policy = DefinedPolicy(des_ao_traj)
+    
+    policy = isnothing(custom_policy) ? DefinedPolicy(des_ao_traj) : custom_policy
     # global PM = tab_pomdp
     # global POL = policy
     # global B0 = b0
     # # tab_pomdp = PM; policy = POL; b0 = B0;
-    for (s,sp,a,o,r) in stepthrough(pomdp, policy, updater(policy), b0, rand(b0), "s,sp,a,o,r", max_steps=max_t)
+    for (s,sp,a,o,r) in stepthrough(pomdp, policy, updater(policy), b0, rand(RNG, b0), "s,sp,a,o,r", rng=RNG, max_steps=max_t)
         if verbose
             println("In state $s")
             println("took action $a")
@@ -63,9 +64,9 @@ function run_fwd_simulation_sao(pomdp, b0, des_ao_traj, max_t; verbose=false)
     return push!(simulated_s, simulated_final_s), simulated_ao
 end
 
-check_ao_trajs(sim_ao, des_ao_traj, lower_bound) = !lower_bound ? sim_ao==des_ao_traj : all(getindex.(sim_ao, Ref(1)) .== getindex.(des_ao_traj, Ref(1)))
+check_ao_trajs(sim_ao, des_ao_traj, upper_bound) = !upper_bound ? sim_ao==des_ao_traj : all(getindex.(sim_ao, Ref(1)) .== getindex.(des_ao_traj, Ref(1)))
 
-function batch_fwd_simulations(pomdp, epochs, des_final_state, b0_testing, des_ao_traj; lower_bound=false, verbose=false, max_t = length(des_ao_traj))
+function batch_fwd_simulations(RNG, pomdp, epochs, des_final_state, b0_testing, des_ao_traj; upper_bound=false, verbose=false, custom_policy=nothing, max_t = length(des_ao_traj))
     isempty(des_ao_traj) && return nothing, 1.0
     
     init_states = []
@@ -73,8 +74,8 @@ function batch_fwd_simulations(pomdp, epochs, des_final_state, b0_testing, des_a
 
     # for e = Tqdm(1:epochs)
     for e = 1:epochs
-        sim_s, sim_ao = run_fwd_simulation_sao(pomdp, b0, des_ao_traj, max_t; verbose=verbose)
-        if length(sim_s)==max_t+1 && sim_s[end]==des_final_state && check_ao_trajs(sim_ao, des_ao_traj, lower_bound)  # && sim_s[1]!=des_final_state
+        sim_s, sim_ao = run_fwd_simulation_sao(RNG, pomdp, b0, des_ao_traj, max_t; verbose=verbose, custom_policy=custom_policy)
+        if length(sim_s)==max_t+1 && sim_s[end]==des_final_state && check_ao_trajs(sim_ao, des_ao_traj, upper_bound)  # && sim_s[1]!=des_final_state
             push!(init_states, sim_s[1])
         end
     end
@@ -83,30 +84,7 @@ function batch_fwd_simulations(pomdp, epochs, des_final_state, b0_testing, des_a
     return init_states, round(percentage/100; digits=5)
 end
 
-function validation_probs_and_scores(β_levels, pomdp, max_t, des_final_state, CMD_ARGS; lower_bound=false, verbose=false)
-    probs = []
-    scores = []
-    items = length(β_levels[max_t].ao)
-
-    tab_pomdp = tabulate(pomdp)
-    acts = collect(actions(pomdp))
-
-    for i in 1:items
-        bel  = β_levels[max_t].β[i]
-        aos  = β_levels[max_t].ao[i]
-    
-        prob = bayesian_prob(tab_pomdp, acts, bel, aos)
-        # prob = bayesian_prob_summed(tab_pomdp, acts, bel, aos)
-        _, score = batch_fwd_simulations(pomdp, CMD_ARGS[:val_epochs], des_final_state, bel, convert_des_ao_traj(pomdp, aos), lower_bound=lower_bound, verbose=verbose);
-
-        println("  Item:\t\t  $(i) of $(items) \n  Approx Prob:\t  $(prob) \n  Lhood Score:\t  $(score)")
-        push!(probs, prob)
-        push!(scores, score)
-    end
-    return probs, scores
-end
-
-function validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, des_final_state, CMD_ARGS; lower_bound=false, verbose=false)
+function validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, des_final_state, CMD_ARGS; upper_bound=false, verbose=false, custom_policy=nothing)
     items = collect(keys(TREE.P))
 
     probs  = zeros(length(items))
@@ -117,13 +95,15 @@ function validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, 
         
     @info "Using $(Threads.nthreads()) threads.\nBackwardsTree has $(length(items)) nodes."
     Threads.@threads for i = Tqdm(1:length(items)) # (i, belRec) in enumerate(keys(TREE.P))
+        m_RNG = MersenneTwister(CMD_ARGS[:noise_seed] + i)
+
         belRec = items[i]
         bel, aos = belRec.β, belRec.ao
         p = TREE.P[belRec]
     
-        prob = bayesian_prob(tab_pomdp, acts, bel, aos)
-        # prob = bayesian_prob_summed(tab_pomdp, acts, bel, aos)
-        _, score = batch_fwd_simulations(pomdp, CMD_ARGS[:val_epochs], des_final_state, bel, convert_aos(pomdp, aos), lower_bound=lower_bound, verbose=verbose);
+        # bp, prob = bayesian_prob(tab_pomdp, acts, bel, aos, :debug); nonzero(bp)
+        prob = !upper_bound ? bayesian_prob(tab_pomdp, acts, bel, aos) : -1
+        _, score = batch_fwd_simulations(m_RNG, pomdp, CMD_ARGS[:val_epochs], des_final_state, bel, convert_aos(pomdp, aos), upper_bound=upper_bound, verbose=verbose, custom_policy=custom_policy);
 
         if verbose
             println("  Item:\t\t  $(i) of $(items) \n  TREE Value:\t  $(p) \n  Approx Prob:\t  $(prob) \n  Lhood Score:\t  $(score) \n  aos:\t  $(aos)")
@@ -134,4 +114,21 @@ function validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, 
         tsteps[i] = depth(aos)
     end
     return probs, scores, tsteps
+end
+
+function stats(probs, scores, tsteps)
+    println("MAE: $(mae(probs-scores))")
+    println("STE: $(ste(probs-scores))")
+
+    res = Dict(t => [] for t in unique(tsteps))
+
+    for (p,s,t) in zip(probs, scores, tsteps)
+        push!(res[t], p)
+    end
+
+    for t in sort(unique(tsteps))
+        a,b,c,d = round.([extrema(res[t])..., mean(res[t]), median(res[t])].*100 ; digits=4)  # percent
+        l = length(res[t])
+        println("Timestep $(Int(t)) has $l items: (min, max, mean, median) = ($a%, $b%, $c%, $d%)")
+    end
 end

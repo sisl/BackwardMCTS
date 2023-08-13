@@ -13,6 +13,7 @@ using DataStructures: DefaultDict
 using StatsBase: sample, Weights
 using Parameters: @with_kw
 using Dates: now
+using Random
 
 Tqdm(obj) = length(obj) == 1 ? obj : ProgressBars.tqdm(obj)
 
@@ -70,19 +71,29 @@ end
 """ Get a list of items from a Dict or DefaultDict. """
 getd(d::Union{Dict, DefaultDict}, k::Union{Base.KeySet, Set, AbstractArray}) = getindex.(Ref(d), k)
 
+function unique_elems(S)
+    elems = unique(i -> S[i], 1:length(S))
+    return S[elems], elems
+end
 
 remove(list, item) = list[list .!= item]
 
 # Returns float zero if result was actually NaN.
 function no_nan_division(a::Number,b::Number)
     res = a/b
-    @assert !isinf(res) "Result when to infinity! a,b: $a, $b"
+    @assert !isinf(res) "Result to infinity! a, b: $a, $b"
     return (isnan(res) ? 0.0 : res)
 end
 
-function csvdump(probs, scores, tsteps, CMD_ARGS)
+function csvdump(probs, scores, tsteps, CMD_ARGS; pop_name=true)
     mkpath("../runs/")  # mkdir if it doesn't exist
-    f = "../runs/" * pop!(CMD_ARGS, :savename) * ".csv"
+    if pop_name
+        f = "../runs/" * pop!(CMD_ARGS, :savename) * ".csv"
+    else
+        f = "../runs/" * CMD_ARGS[:savename] * ".csv"
+    end
+
+    println("Saving to $f")
 
     perm = sortperm(string.(keys(CMD_ARGS)))
     header = reshape(collect(string.(keys(CMD_ARGS)))[perm], 1, :)
@@ -126,7 +137,7 @@ function zDistribution_exp(linspace_size=10000, z_min=0.0, z_max=1.0; exp_const=
 end
 
 # Sample from a CappedExponential with maximum value of `z_high`.
-Base.rand(D::CappedExponential, z_high) = sample(view(D.vals, 1:Int(round(z_high*D.len))), Weights(view(D.probs, 1:Int(round(z_high*D.len)))))
+Base.rand(RNG, D::CappedExponential, z_high) = sample(RNG, view(D.vals, 1:Int(round(z_high*D.len))), Weights(view(D.probs, 1:Int(round(z_high*D.len)))))
 
 # Check equality of structs x and y of same type
 @generated function ≂(x, y)
@@ -162,7 +173,7 @@ function getRandomSamplesOnNSphere(center, radius, num_of_samples=100000)
 end
 
 
-function getRandomSamplesInNSphere(center, radius, num_of_samples=100000)
+function getRandomSamplesInNSphere(RNG, center, radius, num_of_samples=100000)
     # Gets uniformly random samples located inside an N-dimensional sphere with radius R, centered at C.
     # center/radius: R/C of sphere, num_of_samples: how many samples to return.
     # From: https://stackoverflow.com/a/63354046
@@ -170,7 +181,7 @@ function getRandomSamplesInNSphere(center, radius, num_of_samples=100000)
     dim = length(center)
 
     X = randn((dim, num_of_samples))
-    U = rand((1, num_of_samples))
+    U = rand(RNG, (1, num_of_samples))
 
     normalizer = sqrt.(sum(X.^2, dims=1))
     return radius .* U.^(1/dim) ./ normalizer .* X

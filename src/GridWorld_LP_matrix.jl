@@ -4,7 +4,6 @@ include("VertexPivot.jl")
 using Suppressor
 using JuMP
 using LinearAlgebra: Diagonal, dot, rank
-using Random
 using StatsBase: sample, Weights
 
 function obj_func(O, T, β_t, x)
@@ -175,6 +174,12 @@ function get_z_high(O, T, Γ, αj, β_t, LP_Solver_model)
     Oa = reshape(diag(O), 1, :)
     @constraint(model, dot(Oa*T, x) == z)
 
+    # # Constraint 6: Real vs Approx next belief should not be far
+    # @variable(model, p1)
+    # @constraint(model, O*T*x - β_t .<= p1)
+    # @constraint(model, β_t - O*T*x .<= p1)
+    # @constraint(model, p1 <= 0.7)
+
     @objective(model, Max, z)
     optimize!(model)
 
@@ -186,42 +191,33 @@ function get_z_high(O, T, Γ, αj, β_t, LP_Solver_model)
     end
 end
 
-function validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, αj; with_J=false)
+function validate_single_action(RNG, tab_pomdp, obs_id, policy, β_next, LP_Solver, αj; with_J=false)
     Γ = policy.alphas
     O = create_O_bar(tab_pomdp, obs_id)
     T = create_T_bar(tab_pomdp, policy.action_map[αj])
 
-    # Vals = Dict()
-    
-    # global B = β_next
-    # global OO = O
-    # global TT = T
-    # @show (obs_id, αj)
-    
     z_high = get_z_high(O, T, Γ, αj, β_next, LP_Solver.model)
     if (z_high == 0.0)
         return nothing
     end
 
-    z_val = rand(LP_Solver.z_dist_exp, z_high)
+    z_val = rand(RNG, LP_Solver.z_dist_exp, z_high)
     X, J, A, b, c = validate(O, T, Γ, αj, β_next, LP_Solver.model, z_val)
     # push!.(Ref(Vals), (:X, :J, :A, :b, :c).=>(X, J, A, b, c))
-
-
-    if (J == Inf)
+    
+    if (J == Inf || J>0.5)
         return nothing
     end
+    @show J
 
-    # @show keys(Vals)
-    # @show J
-    # @warn "aa"
     LP = LinearProgram(A, b, c, X, no_of_states, Set(), αj);
-    B = get_valid_partition_aux(A, X; verbose=false);
 
+    B = get_valid_partition_aux(RNG, A, X; verbose=false);
+    
     if isnothing(B)
         return nothing
     end
-
+    
     get_polygon_vertices!(B, LP);
     remove_polygon_vertices!(LP, Γ, αj);
     if !with_J
@@ -232,7 +228,7 @@ function validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, �
 end
 
 
-function validate_rollout_actions(tab_pomdp, obs_id, policy, β_next, LP_Solver)
+function validate_rollout_actions(RNG, tab_pomdp, obs_id, policy, β_next, LP_Solver)
     # Choose next rollout action w.r.t. softmax(-J).
     Γ = policy.alphas
 
@@ -240,20 +236,24 @@ function validate_rollout_actions(tab_pomdp, obs_id, policy, β_next, LP_Solver)
     Js = Float64[]
 
     for αj in 1:length(Γ)
-        res = validate_single_action(tab_pomdp, obs_id, policy, β_next, LP_Solver, αj; with_J=true)
+        res = validate_single_action(RNG, tab_pomdp, obs_id, policy, β_next, LP_Solver, αj; with_J=true)
         !isnothing(res) ? (lp,j)=res : continue
         push!(LPs, lp)
         push!(Js, j)
     end
+    
+    if isempty(LPs)
+        return nothing, nothing
+    end
 
     # @show Js
     # @show softmax_neg(Js)
-    chosen_act = sample(1:length(Γ), Weights(softmax_neg(Js)))
+    chosen_act = sample(RNG, 1:length(Γ), Weights(softmax_neg(Js)))
     return chosen_act, LPs[chosen_act]
 end
 
 
-function sample_from_belief_subspace(LP, tab_pomdp, obs_id)
+function sample_from_belief_subspace(RNG, LP, tab_pomdp, obs_id)
     X_stars = reshape(Float64[], LP.no_of_states, 0)
     X_stars_rchblty_probs = Float64[]
     samples = []
@@ -278,13 +278,13 @@ function sample_from_belief_subspace(LP, tab_pomdp, obs_id)
         # @show X_stars_rchblty_probs
         # @show X_stars_rchblty_probs/denom
         dirc = Dirichlet(X_stars_rchblty_probs / denom)
-        w = normalize(rand(dirc))
+        w = normalize(rand(RNG, dirc))
         s = X_stars * w
         return round.(s; digits=6)
     end
 end
 
-function samples_from_belief_subspace(LP, tab_pomdp, obs_id, belief_N)   # old (also has different input fields)
+function samples_from_belief_subspace(RNG, LP, tab_pomdp, obs_id, belief_N)   # old (also has different input fields)
     X_stars = reshape(Float64[], LP.no_of_states, 0)
     X_stars_rchblty_probs = Float64[]
     samples = []
@@ -307,7 +307,7 @@ function samples_from_belief_subspace(LP, tab_pomdp, obs_id, belief_N)   # old (
         denom = minimum(X_stars_rchblty_probs)
         dirc = Dirichlet(X_stars_rchblty_probs./denom)
         for _ in 1:belief_N
-            w = normalize(rand(dirc))
+            w = normalize(rand(RNG, dirc))
             s = X_stars * w
             push!(samples, s)
         end

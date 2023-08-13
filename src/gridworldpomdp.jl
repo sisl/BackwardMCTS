@@ -183,6 +183,13 @@ function POMDPs.observation(pomdp::SimpleGridWorldPOMDP, sp::AbstractVector{Int}
     return SparseCat(destinations, probs)
 end
 
+function POMDPs.obsindex(pomdp::SimpleGridWorldPOMDP, s::AbstractVector{Int})
+    if all(s.>0)
+        return LinearIndices(pomdp.size)[s...]
+    else
+        return prod(pomdp.size) + 1 
+    end
+end
 
 ### Rewards ###
 

@@ -10,6 +10,8 @@ mutable struct LinearProgram
     a_star
 end
 
+Base.isnothing(LP::LinearProgram) = isempty(LP.vertices)
+
 function remove_redundant_col(A, B, rank_des)
     for idx in reverse(B)  #keep reverse
         temp = remove(B, idx)
@@ -197,7 +199,7 @@ end
 # end
 
 
-function get_valid_partition_aux(A, X; verbose=false)
+function get_valid_partition_aux(RNG, A, X; verbose=false)
     """ Find the indices of a valid partition on the optimal poligon. """
     # @assert rank(A) == size(A, 1)    # matrix A must be full-rank
 
@@ -269,7 +271,7 @@ function get_valid_partition_aux(A, X; verbose=false)
         else
             sample_set = setdiff(V, V_removed)
             isempty(sample_set) && return nothing
-            v_val = rand(sample_set)
+            v_val = rand(RNG, sample_set)
         end
 
         global AA = A

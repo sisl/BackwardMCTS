@@ -253,3 +253,26 @@ function validate_all_actions(tab_pomdp, obs_id, policy, β_next, LP_Solver)
     @suppress remove_polygon_vertices!.(LPs, Ref(Γ), a_star_idxs);
     return LPs
 end
+
+function validation_probs_and_scores(RNG, β_levels, pomdp, max_t, des_final_state, CMD_ARGS; upper_bound=false, verbose=false)
+    probs = []
+    scores = []
+    items = length(β_levels[max_t].ao)
+
+    tab_pomdp = tabulate(pomdp)
+    acts = collect(actions(pomdp))
+
+    for i in 1:items
+        bel  = β_levels[max_t].β[i]
+        aos  = β_levels[max_t].ao[i]
+    
+        prob = bayesian_prob(tab_pomdp, acts, bel, aos)
+        # prob = bayesian_prob_summed(tab_pomdp, acts, bel, aos)
+        _, score = batch_fwd_simulations(RNG, pomdp, CMD_ARGS[:val_epochs], des_final_state, bel, convert_des_ao_traj(pomdp, aos), upper_bound=upper_bound, verbose=verbose);
+
+        println("  Item:\t\t  $(i) of $(items) \n  Approx Prob:\t  $(prob) \n  Lhood Score:\t  $(score)")
+        push!(probs, prob)
+        push!(scores, score)
+    end
+    return probs, scores
+end
