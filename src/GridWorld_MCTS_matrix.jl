@@ -20,13 +20,15 @@ Base.length(T::BackwardTree) = length(T.P)
 
 depth(hist::Tuple) = length(hist)÷2 - 1   # integer division: ÷
 
-UCB1(TREE, exploration_const, oh, aoh) = aoh in TREE.AO ? TREE.Q[aoh] + exploration_const*sqrt(log(TREE.N[oh]) / TREE.N[aoh]) : Inf
+UCB1(TREE, exploration_const, oh, aoh) = aoh in TREE.AO ? TREE.Q[aoh] + exploration_const*sqrt(log(TREE.N[oh]) / TREE.N[aoh]) : 1e8
 
 
 function UCT_action(RNG, TREE, exploration_const, actions_pomdp, obs, hist)
     vals = map(a -> UCB1(TREE, exploration_const, (obs, hist...), (a, obs, hist...)), actions_pomdp)
-    max_vals = maximum(vals)
-    return rand(RNG, (1:length(vals))[vals.==max_vals])
+    # max_vals = maximum(vals)
+    # return rand(RNG, (1:length(vals))[vals.==max_vals])
+    # @show vals
+    return sample(RNG, 1:length(vals), Weights(vals))
 end
 
 function Base.push!(TREE::BackwardTree; hist::Tuple=(), with_time=true, belief::AbstractArray=[])
@@ -163,7 +165,7 @@ function merge_trees!(master::BackwardTree, localtrees::AbstractVector{BackwardT
         return Q_times_N
     end
     
-    function weighted_Q_avg(branch::BackwardTree, total_N)
+    function weighted_Q_avg(branch::BackwardTree, total_N::AbstractDict{Tuple,Int64})
         ky = keys(branch.Q)
         q_times_n = getd(merge(*, branch.N, branch.Q), ky)
         push!(total_N, (:end, -1)=>0)
@@ -216,11 +218,10 @@ function search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, n
         for trd = Tqdm(1:sims_per_thread)
             localtrees = Array{BackwardTree}(undef, no_of_threads)  # undef initialization
 
-            # Threads.@threads 
-            for m = 1:no_of_threads
+            Threads.@threads for m = 1:no_of_threads
                 # Initialize local tree from the global one
                 m_Tree = deepcopy(TREE)
-                m_RNG = MersenneTwister(noise_seed + m)
+                m_RNG = MersenneTwister(noise_seed*trd + m)
                 empty_flag, β, h = sample_node(m_RNG, m_Tree, t-1)
                 !empty_flag ? simulate_node!(m_RNG, m_Tree, Params, β, h) : BackwardTree()
                 localtrees[m] = m_Tree
@@ -228,6 +229,8 @@ function search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, n
 
             merge_trees!(TREE, localtrees);
             @show length(TREE)
+            # pprint(TREE.N)
+            # pprint(TREE.Q)
         end
     end
     

@@ -132,3 +132,8 @@ function stats(probs, scores, tsteps)
         println("Timestep $(Int(t)) has $l items: (min, max, mean, median) = ($a%, $b%, $c%, $d%)")
     end
 end
+
+function get_tree_nodes(TREE)
+    items = collect(keys(TREE.P))
+    return Set([belRec.β for belRec in items])
+end

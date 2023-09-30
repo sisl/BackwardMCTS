@@ -8,12 +8,12 @@ include("Validation_MCTS.jl")
 using Gurobi
 using QMDP
 using POMDPPolicies: solve
-using Random
 
 ########## Params ##########
 CMD_ARGS = parse_commandline()
 @show_args CMD_ARGS
 Random.seed!(CMD_ARGS[:noise_seed])
+RNG = MersenneTwister(CMD_ARGS[:noise_seed])
 
 # Create pomdp
 pomdp = SimpleGridWorldPOMDP(size=(CMD_ARGS[:gridsize], CMD_ARGS[:gridsize]),
@@ -28,9 +28,15 @@ no_of_actions = length(actions(pomdp))
 no_of_states = length(states(pomdp))
 
 # Create α-vectors
-solver = QMDPSolver()
-policy = solve(solver, tab_pomdp)
-Γ = policy.alphas
+solver = QMDPSolver();
+policy = solve(solver, tab_pomdp);
+Γ = policy.alphas;
+
+# # Create α-vectors
+# using PointBasedValueIteration
+# solver = PBVISolver(max_iterations=10, improve_iterations=100, verbose=true)
+# policy = solve(solver, tab_pomdp)
+# Γ = policy.alphas
 
 # Create leaf belief
 final_state = GWPos(3,1)
@@ -39,13 +45,13 @@ final_state = GWPos(3,1)
 # Create BMCTS
 max_t = CMD_ARGS[:max_timesteps]
 LP_Solver = LP_Solver_config(Gurobi.Env(), zDistribution_exp(exp_const=CMD_ARGS[:z_dist_exp_const]))
-TREE = search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, getd(CMD_ARGS, [:sims_per_thread, :no_of_threads, :exploration_const, :rollout_random])...)
+TREE = search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, RNG, getd(CMD_ARGS, [:sims_per_thread, :no_of_threads, :exploration_const, :rollout_random])...)
 
 # Save tree to local disk
 saveTree(TREE, CMD_ARGS[:savename])
 
 # Validate BMCTS nodes
-probs, scores, tsteps = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, lower_bound=false, verbose=false)
+probs, scores, tsteps = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=false, verbose=false)
 
 # Dump results to file
 csvdump(probs, scores, tsteps, CMD_ARGS)

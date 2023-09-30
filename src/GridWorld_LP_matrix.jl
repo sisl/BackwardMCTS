@@ -208,7 +208,14 @@ function validate_single_action(RNG, tab_pomdp, obs_id, policy, β_next, LP_Solv
     if (J == Inf || J>0.5)
         return nothing
     end
-    @show J
+    # @show J
+
+    # if J ==0
+    #     @show "-----"
+    #     @show αj
+    #     @show β_next 
+    #     @show z_val
+    # end
 
     LP = LinearProgram(A, b, c, X, no_of_states, Set(), αj);
 

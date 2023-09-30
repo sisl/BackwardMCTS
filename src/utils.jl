@@ -237,104 +237,29 @@ ste(A::AbstractArray) = std(A) / sqrt(length(A))
 # Mean Absolute Error
 mae(A::AbstractArray) = sum(abs.(A)) / length(A)
 
+function pprint(D::AbstractDict)
+    for (k,v) in D
+        println("$k\t=>  $v")
+    end
+end
 
+function get_optimal_actions_matrix(pomdp, policy)
+    Γ = policy.alphas
+    no_of_states = length(states(pomdp))
 
-
-
-
-# function myfunction()
-#     rank(rand(4000,4000))
-# end
-
-# function run_with_timeout(f::Function, timeout::Real)
-#     res = nothing
-#     task = @async begin
-#         res = try
-#             @timed f()
-#         catch e
-#             e
-#         end
-#     end
-#     sleep(timeout)
-#     if istaskfailed(task)
-#         error("function timed out after $timeout seconds")
-#     else
-#         return res
-#     end
-# end
-
-# @time result = run_with_timeout(myfunction, 3.0)
-
-
-
-
-
-# macro timeout(seconds, expr)
-#     quote
-#         tsk = @task $expr
-#         schedule(tsk)
-#         Timer($seconds) do timer
-#             istaskdone(tsk) || Base.throwto(tsk, InterruptException())
-#         end
-#         try
-#             fetch(tsk)
-#         catch _ 
-#             # (e isa InterruptException) ? (@warn "Call timed out.") : rethrow(e)
-#             @warn "Task not completed."
-#         end
-#     end
-# end
-
-# x = @timeout 1 begin
-#     sleep(1.1)
-#     return :myresults
-#     end
-
-# foo = @timeout 1 begin rand(4000000,80); end;
-
-
-
-
-
-
-
-
-
-
-
-# macro timeout(seconds, expr, fail)
-#     quote
-#         tsk = @task $expr
-#         schedule(tsk)
-#         Timer($seconds) do timer
-#             istaskdone(tsk) || Base.throwto(tsk, InterruptException())
-#         end
-#         try
-#             fetch(tsk)
-#         catch _
-#             $fail
-#         end
-#     end
-# end
-
-# @time x = @timeout 1 begin
-#     # sleep(1.1)
-#     return rand(4000000,80);
-#     end "failed"
-
-
-
-
-
-# function timeout(f, args, seconds, fail)
-#     tsk = @task f(args...)
-#     schedule(tsk)
-#     Timer(seconds) do timer
-#         istaskdone(tsk) || Base.throwto(tsk, InterruptException())
-#     end
-#     try
-#         fetch(tsk)
-#     catch _;
-#         fail
-#     end
-# end
+    optimal_actions = zeros(no_of_states,)
+    for i in 1:no_of_states
+        belief = zeros(no_of_states,)
+        belief[i] = 1.0
+    
+        act = argmax([dot(α, belief) for α in Γ])
+        optimal_actions[i] = act
+    end
+    
+    N = Int(sqrt(no_of_states-1))
+    # @show states_matrix = reshape_GW(states(pomdp))
+    # @show rewards_matrix = reshape_GW(tab_pomdp.R[:,1])
+    optimal_actions_matrix = map(x->actions(pomdp)[x], reshape_GW(optimal_actions))
+    
+    return optimal_actions_matrix
+end

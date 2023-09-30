@@ -39,7 +39,7 @@ LP_Solver = LP_Solver_config(Gurobi.Optimizer, CMD_ARGS[:z_threshold])
 β_levels = backwards_MCTS(pomdp, policy, β_final, max_t, LP_Solver, CMD_ARGS[:obs_N], CMD_ARGS[:belief_N])
 
 # Validate BMCTS nodes
-probs, scores, tsteps = validation_probs_and_scores(β_levels, pomdp, max_t, des_final_state, CMD_ARGS, lower_bound=false)
+probs, scores, tsteps = validation_probs_and_scores(β_levels, pomdp, max_t, des_final_state, CMD_ARGS, upper_bound=false)
 
 # Dump results to file
 csvdump(probs, scores, tsteps, CMD_ARGS)
