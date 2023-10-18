@@ -123,13 +123,13 @@ function stats(probs, scores, tsteps)
     res = Dict(t => [] for t in unique(tsteps))
 
     for (p,s,t) in zip(probs, scores, tsteps)
-        push!(res[t], p)
+        push!(res[t], s)
     end
 
     for t in sort(unique(tsteps))
-        a,b,c,d = round.([extrema(res[t])..., mean(res[t]), median(res[t])].*100 ; digits=4)  # percent
+        a,b,c,d = round.([minimum(res[t]), median(res[t]), mean(res[t]), maximum(res[t])].*100 ; digits=4)  # percent
         l = length(res[t])
-        println("Timestep $(Int(t)) has $l items: (min, max, mean, median) = ($a%, $b%, $c%, $d%)")
+        println("Timestep $(Int(t)) has $l items: (min, median, mean, max) = ($a%, $b%, $c%, $d%)")
     end
 end
 

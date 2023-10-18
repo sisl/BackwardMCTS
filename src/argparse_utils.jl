@@ -7,7 +7,7 @@ function parse_commandline()
     @add_arg_table! s begin
         "--gridsize"
             arg_type = Int
-            default = 5
+            default = 4
 
         "--t_and_o_prob"
             arg_type = Float64
@@ -15,15 +15,15 @@ function parse_commandline()
 
         "--z_dist_exp_const"
             arg_type = Float64
-            default = 3.0
+            default = 20.0
 
         "--exploration_const"
             arg_type = Float64
-            default = 0.0
+            default = 0.1
 
         "--sims_per_thread"
             arg_type = Int
-            default = 10
+            default = 20
 
         "--no_of_threads"
             arg_type = Int
@@ -31,7 +31,7 @@ function parse_commandline()
 
         "--max_timesteps"
             arg_type = Int
-            default = 7
+            default = 5
 
         "--rollout_random"
             arg_type = Bool
@@ -43,7 +43,7 @@ function parse_commandline()
 
         "--noise_seed"   # should be a prime number, due to how RNG is setup on different threads.
             arg_type = Int
-            default = 41
+            default = 139
 
         "--savename"
             help = "Save name of file for results. Any valid String accepted. Pass no arguments to skip saving."

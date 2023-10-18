@@ -32,12 +32,6 @@ solver = QMDPSolver();
 policy = solve(solver, tab_pomdp);
 Γ = policy.alphas;
 
-# # Create α-vectors
-# using PointBasedValueIteration
-# solver = PBVISolver(max_iterations=10, improve_iterations=100, verbose=true)
-# policy = solve(solver, tab_pomdp)
-# Γ = policy.alphas
-
 # Create leaf belief
 final_state = GWPos(3,1)
 β_final = get_leaf_belief(pomdp, final_state)
@@ -45,15 +39,20 @@ final_state = GWPos(3,1)
 # Create BMCTS
 max_t = CMD_ARGS[:max_timesteps]
 LP_Solver = LP_Solver_config(Gurobi.Env(), zDistribution_exp(exp_const=CMD_ARGS[:z_dist_exp_const]))
-TREE = search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, RNG, getd(CMD_ARGS, [:sims_per_thread, :no_of_threads, :exploration_const, :rollout_random])...)
+TREE = search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, getd(CMD_ARGS, [:noise_seed, :sims_per_thread, :no_of_threads, :exploration_const, :rollout_random])...)
 
 # Save tree to local disk
 saveTree(TREE, CMD_ARGS[:savename])
 
-# Validate BMCTS nodes
-probs, scores, tsteps = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=false, verbose=false)
+# # Validate BMCTS nodes
+# probs, scores, tsteps = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=false, verbose=false)
 
-# Dump results to file
-csvdump(probs, scores, tsteps, CMD_ARGS)
+# # Dump results to file
+# csvdump(probs, scores, tsteps, CMD_ARGS)
+
+# Construct and benchmark kdtree
+# include("KDTree.jl")
+# kdtree = create_kdtree(TREE)
+# tree_probs, bayes_probs, kd_scores = benchmark_kdtree(kdtree, pomdp, final_state; sigma=0.1, upper_bound=false)
 
 @info "Done!"

@@ -40,7 +40,7 @@ TREE = search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, get
 saveTree(TREE, CMD_ARGS[:savename])
 
 # Validate BMCTS nodes
-probs, scores, tsteps = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, lower_bound=false, verbose=false)
+probs, scores, tsteps = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=false, verbose=false)
 
 # Dump results to file
 csvdump(probs, scores, tsteps, CMD_ARGS)

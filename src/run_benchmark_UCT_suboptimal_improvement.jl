@@ -55,10 +55,6 @@ policy1 = solve(solver, pomdp)
 #! Using upper bound:  p(b'|b,a) ≥ p(b',o|b,a).
 probs1, scores1, tsteps1 = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=true)   #! deliberately upper_bound=true
 
-# Dump results to file
-csvdump(probs1, scores1, tsteps1, CMD_ARGS)
-
-
 
 #------------------------------------------------------#
 
@@ -71,11 +67,6 @@ policy2 = solve(solver, pomdp)
 #* Probability of reaching β_final with this new policy.
 #! Using upper bound:  p(b'|b,a) ≥ p(b',o|b,a).
 probs2, scores2, tsteps2 = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=true, custom_policy=policy2)   #! deliberately upper_bound=true
-
-# Dump results to file
-CMD_ARGS = parse_commandline()
-csvdump(probs2, scores2, tsteps2, CMD_ARGS)
-
 
 # #? You should see that scores2 ≤ scores1 for all items, because our policy has improved 
 # #? and our failure probability is lower now. 
@@ -92,11 +83,6 @@ policy3 = solve(solver, pomdp, get_tree_nodes(TREE))
 #* Probability of reaching β_final with this new policy.
 #! Using upper bound:  p(b'|b,a) ≥ p(b',o|b,a).
 probs3, scores3, tsteps3 = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=true, custom_policy=policy3)   #! deliberately upper_bound=true
-
-# Dump results to file
-CMD_ARGS = parse_commandline()
-csvdump(probs3, scores3, tsteps3, CMD_ARGS)
-
 
 # #? You should see that scores3 ≤ scores2 for all items, because our policy has improved 
 # #? and our failure probability is lower now. 

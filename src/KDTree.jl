@@ -39,6 +39,7 @@ function benchmark_kdtree(kdtree::KDTree_and_probs, pomdp::POMDP, des_final_stat
     tree_probs = zeros(length(kdtree))
     bayes_probs = zeros(length(kdtree))
     scores = zeros(length(kdtree))
+    tsteps = zeros(length(kdtree))
 
     tab_pomdp = tabulate(pomdp)
     acts = collect(actions(pomdp))
@@ -52,6 +53,7 @@ function benchmark_kdtree(kdtree::KDTree_and_probs, pomdp::POMDP, des_final_stat
     
     @info "Using $(Threads.nthreads()) threads.\nBackwardsTree has $(length(kdtree)) nodes."
     Threads.@threads for i = Tqdm(1:length(kdtree))  # (i,d) in Tqdm(enumerate(kdtree.tree.data))
+        m_RNG = MersenneTwister(CMD_ARGS[:noise_seed] + i)
         d = kdtree.tree.data[i]
         dp = perturb(d, sigma)
 
@@ -64,7 +66,8 @@ function benchmark_kdtree(kdtree::KDTree_and_probs, pomdp::POMDP, des_final_stat
         bayes_prob = bayesian_prob(tab_pomdp, acts, dp, hist)
 
         # Validation:
-        _, score = batch_fwd_simulations(pomdp, CMD_ARGS[:val_epochs], des_final_state, dp, convert_aos(pomdp, hist), upper_bound=upper_bound, verbose=verbose);
+        _, score = batch_fwd_simulations(m_RNG, pomdp, CMD_ARGS[:val_epochs], des_final_state, dp, convert_aos(pomdp, hist), upper_bound=upper_bound, verbose=verbose);
+
 
         if verbose
             println("  Item:\t\t  $(i) of $(items) \n  TREE Value:\t  $(p) \n  Approx Prob:\t  $(prob) \n  Lhood Score:\t  $(score) \n  aos:\t  $(aos)")
@@ -73,6 +76,7 @@ function benchmark_kdtree(kdtree::KDTree_and_probs, pomdp::POMDP, des_final_stat
         tree_probs[i] = tree_prob
         bayes_probs[i] = bayes_prob
         scores[i] = score
+        tsteps[i] = depth(hist)
     end
-    return tree_probs, bayes_probs, scores
+    return tree_probs, bayes_probs, scores, tsteps
 end

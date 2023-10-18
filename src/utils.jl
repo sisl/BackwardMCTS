@@ -85,7 +85,7 @@ function no_nan_division(a::Number,b::Number)
     return (isnan(res) ? 0.0 : res)
 end
 
-function csvdump(probs, scores, tsteps, CMD_ARGS; pop_name=true)
+function csvdump(probs, scores, tsteps, CMD_ARGS; pop_name=false)
     mkpath("../runs/")  # mkdir if it doesn't exist
     if pop_name
         f = "../runs/" * pop!(CMD_ARGS, :savename) * ".csv"
