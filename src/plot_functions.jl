@@ -1,4 +1,5 @@
 using Plots
+using StatsPlots
 include("KDTree.jl")
 
 # function heatmap_Tree_on_gridworld(pomdp, TREE; metric=:local)
@@ -112,12 +113,59 @@ function plot_Tree_avg_reachability_curves(TREE)
     for (idx, _) in enumerate(tdiff[1:end-1])
         if isodd(idx)
             vspan!(f, collect(tdiff[idx:idx+1]), alpha=0.15, alphaline=0.0, color=:black, label=nothing)
-            @show idx
+            # @show idx
         end
     end
 
     savefig(f, "../runs/" * CMD_ARGS[:savename] * "plot2.pdf")
     return f
+end
+
+
+function plot_Tree_avg_reachability_curves(TREE)
+    """ Plot the three the curves of reachability. """
+    p_bmcts, s_lower, tsteps = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=false)
+    _, s_upper, _ = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=true)
+
+    vals_sort_func((vals, times)) = (times, -vals)
+    sp = sortperm(tuple.(p_bmcts, tsteps), by=vals_sort_func)
+    popfirst!(sp)  # pop the t=0 entry
+
+    tsteps = tsteps[sp]
+    p_bmcts = p_bmcts[sp]
+    s_lower = s_lower[sp]
+    s_upper = s_upper[sp]
+
+    f = plot()
+    N = length(p_bmcts)
+    A = repeat(tsteps, 2)
+    B = vcat([["Empirical Value (Any Observations)" for _ in 1:N],
+              ["BMCTS Approximation" for _ in 1:N]]...)
+    C = vcat([s_upper, p_bmcts]...)
+
+    groupedboxplot!(f, A, C, group = B, bar_width = 0.8, legend=true, outliers=false)
+
+    title!(f, "Reachability Probabilities of Belief Nodes")
+    xlabel!(f, "Timesteps Backward")
+    ylabel!(f, "Reachability Probability")
+
+    savefig(f, "../runs/" * CMD_ARGS[:savename] * "plot21.pdf")
+
+    
+    g = plot()
+
+    for t in sort(unique(tsteps))
+        spp = (tsteps.==t)
+        boxplot!(g, ["$(Int(t))"], abs.(s_lower[spp]-p_bmcts[spp]), outliers=false, color=:black, alpha=0.5, legend=false)
+    end
+
+    title!(g, "Errors in Reachability Probabilities of Belief Nodes")
+    xlabel!(g, "Timesteps Backward")
+    ylabel!(g, "BMCTS Absolute Error\n(w.r.t. Empirical Value)")
+
+    savefig(g, "../runs/" * CMD_ARGS[:savename] * "plot22.pdf")
+
+    return f, g
 end
 
 
@@ -156,6 +204,39 @@ end
 
 
 
+function plot_Validation_curves(TREE; epochs=[1e2, 1e3, 1e4, 1e5, 1e6], name=["10²", "10³", "10⁴", "10⁵", "10⁶"])
+    default_value = CMD_ARGS[:val_epochs]
+    probs_bmcts = nothing
+    tsteps = nothing
+    s_lower_vals = []
+    f = plot()
+
+    for e in epochs
+        CMD_ARGS[:val_epochs] = e
+        p_bmcts, s_lower, t = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=false)
+        push!(s_lower_vals, s_lower)
+        probs_bmcts = p_bmcts
+        tsteps = t
+    end
+
+    sp = sortperm(s_lower_vals[end], rev=false)
+    pop!(sp)   # pop the last value as it has p=1.0
+
+    for (i, e, s_lower) in zip(1:length(name), epochs, s_lower_vals)
+        boxplot!(f, [name[i]], abs.(s_lower-p_bmcts), outliers=false, color=:black, alpha=0.5, legend=false)
+    end
+
+    CMD_ARGS[:val_epochs] = default_value
+    title!(f, "Benchmarking Number of Epochs")
+    xlabel!(f, "Epochs")
+    ylabel!(f, "BMCTS Absolute Error\n(w.r.t. Empirical Value)")
+    
+    savefig(f, "../runs/" * CMD_ARGS[:savename] * "plot30.pdf")
+    return f
+end
+
+
+
 function plot_Tree_kdtree_curves_tracking(TREE; sigma_vals=[1e-4, 1e-3, 1e-2, 5e-2, 1e-1, 3e-1, 5e-1, 1e0])
     kdtree = create_kdtree(TREE)
     kdtree_approx = []
@@ -164,7 +245,7 @@ function plot_Tree_kdtree_curves_tracking(TREE; sigma_vals=[1e-4, 1e-3, 1e-2, 5e
     f = plot()
 
     for sigma in sigma_vals
-        _, kdbayes_probs, kd_scores, kd_tsteps = benchmark_kdtree(kdtree, pomdp, final_state; sigma=sigma, upper_bound=false)
+        _, kdbayes_probs, kd_scores, kd_tsteps = benchmark_kdtree_diameter(kdtree, pomdp, final_state; sigma=sigma, upper_bound=false)
         push!(kdtree_approx, kdbayes_probs)
         push!(kdtree_scores, kd_scores)
         push!(kdtree_tsteps, kd_tsteps)
@@ -199,7 +280,7 @@ function plot_Tree_kdtree_curves_tracking(TREE; sigma_vals=[1e-4, 1e-3, 1e-2, 5e
     for (idx, _) in enumerate(tdiff[1:end-1])
         if isodd(idx)
             vspan!(f, collect(tdiff[idx:idx+1]), alpha=0.15, alphaline=0.0, color=:black, label=nothing)
-            @show idx
+            # @show idx
         end
     end
 
@@ -217,14 +298,14 @@ function plot_Tree_kdtree_curves(TREE; sigma_vals=[1e-4, 1e-3, 1e-2, 5e-2, 1e-1,
     f = plot()
 
     for sigma in sigma_vals
-        _, kdbayes_probs, kd_scores, kd_tsteps = benchmark_kdtree(kdtree, pomdp, final_state; sigma=sigma, upper_bound=false)
+        _, kdbayes_probs, kd_scores, kd_tsteps = benchmark_kdtree_diameter(kdtree, pomdp, final_state; sigma=sigma, upper_bound=false)
         push!(kdtree_approx, kdbayes_probs)
         push!(kdtree_scores, kd_scores)
         push!(kdtree_tsteps, kd_tsteps)
     end
 
     vals_sort_func((vals, times)) = (times, -vals)
-    sp = sortperm(tuple.(kdtree_approx[1], kdtree_tsteps[1]), by=vals_sort_func)
+    sp = sortperm(tuple.(kdtree_approx[end], kdtree_tsteps[end]), by=vals_sort_func)
     popfirst!(sp)  # pop the t=0 entry
 
     val0 = kdtree_approx[1][sp]
@@ -254,7 +335,7 @@ function plot_Tree_kdtree_curves(TREE; sigma_vals=[1e-4, 1e-3, 1e-2, 5e-2, 1e-1,
     for (idx, _) in enumerate(tdiff[1:end-1])
         if isodd(idx)
             vspan!(f, collect(tdiff[idx:idx+1]), alpha=0.15, alphaline=0.0, color=:black, label=nothing)
-            @show idx
+            # @show idx
         end
     end
 
@@ -264,53 +345,39 @@ end
 
 
 
-function plot_Tree_kdtree_curves_upper(TREE; sigma_vals=[1e-4, 1e-3, 1e-2, 5e-2, 1e-1, 3e-1, 5e-1, 1e0])
+function heatmap_Tree_kdtree(TREE; sigma_vals=[1e-4, 1e-3, 1e-2, 5e-2, 1e-1, 3e-1, 5e-1, 1e0])
     kdtree = create_kdtree(TREE)
     kdtree_approx = []
     kdtree_scores = []
-    f = plot()
+    kdtree_tsteps = []
 
     for sigma in sigma_vals
-        _, kdbayes_probs, kd_scores, kd_tsteps = benchmark_kdtree(kdtree, pomdp, final_state; sigma=sigma, upper_bound=true)
+        _, kdbayes_probs, kd_scores, kd_tsteps = benchmark_kdtree_diameter(kdtree, pomdp, final_state; sigma=sigma, upper_bound=false)
         push!(kdtree_approx, kdbayes_probs)
         push!(kdtree_scores, kd_scores)
+        push!(kdtree_tsteps, kd_tsteps)
     end
 
-    sp = sortperm(kdtree_approx[1], rev=false)
-    pop!(sp)   # pop the last value as it has p=1.0
+    val0 = kdtree_approx[1]
+    tsteps = kdtree_tsteps[1]
 
-    for (idx, sigma, val2, val1) in zip(1:length(sigma_vals), sigma_vals, kdtree_approx, kdtree_scores)
-        plot!(f, val1[sp], linewidth=2, label="Voronoi Upper Bound for σ=$sigma", ylims=(0.0, 1.0)) 
-        # if idx==length(sigma_vals)
-        #     label = "Respective Empirical Value(s)"
-        # else
-        #     label = nothing
-        # end
-        plot!(f, val2[sp], linewidth=0, label=nothing, ylims=(0.0, 1.0), color=nothing, legend=:topleft)
+    X = sigma_vals
+    Y = Int.(sort(unique(tsteps)))
+    popfirst!(Y)  # pop the t=0 entry
+    Z = fill(NaN, size(Y, 1), size(X, 1))
+    
+    for i in eachindex(X), j in Y
+        spp = (tsteps .== j)
+        val1 = kdtree_approx[i]
+        Z[j, i] = mean(abs.((val1[spp] .- val0[spp]) ./ val0[spp]))
     end
 
-    _, _, emp_score,_ = benchmark_kdtree(kdtree, pomdp, final_state; sigma=1e-8, upper_bound=true)
-    plot!(f, emp_score[sp], linewidth=2, label="Unperturbed Empirical Upper Bound", ylims=(0.0, 1.0), color=:black, legend=:topleft) 
-    title!(f, "Discrepancies for Any Belief (Voronoi) Approximations")
-    xlabel!(f, "Nodes in the Tree (Sorted)")
-    ylabel!(f, "Reachability Probability")
+    f = heatmap(eachindex(X),Y,Z, xticks = (eachindex(X), X))
 
-    savefig(f, "../runs/" * CMD_ARGS[:savename] * "plot5.pdf")
+    title!(f, "Relative Errors of Reachability Probabilities")
+    xlabel!(f, "Percentage of Corresponding Voronoi Cell Radius")
+    ylabel!(f, "Timesteps Backward")
+
+    savefig(f, "../runs/" * CMD_ARGS[:savename] * "plot42.pdf")
     return f
-end
-
-
-function plot_solver_curves(probs_bad, probs_good)
-    sp = sortperm(probs_bad, rev=false)
-    pop!(sp)   # pop the last value as it has p=1.0
-    f = plot()
-
-    plot!(f, probs_bad[sp], linewidth=1, label="QMDP (initial)")
-    plot!(f, probs_good[sp], linewidth=1, label="PBVI (over underperforming nodes)", legend=:topleft)
-
-    title!(f, "Discrepancies in KDTree Approximations")
-    xlabel!(f, "Nodes in the Tree (Sorted)")
-    ylabel!(f, "Reachability Probability")
-
-    savefig(f, "../runs/" * CMD_ARGS[:savename] * "plot6.pdf")
 end
