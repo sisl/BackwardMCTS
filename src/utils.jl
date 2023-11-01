@@ -224,8 +224,17 @@ function saferank(A::AbstractArray)
     end
 end
 
-saveTree(T, fname) = @suppress JLD.save("../runs/" * fname * ".jld", "tree", T)
-loadTree(fname) = @suppress JLD.load("../runs/" * fname * ".jld")["tree"]
+function saveTree(pomdp, T, fname)
+    @suppress JLD.save("../runs/" * fname * "_pomdp.jld", "pomdp", pomdp)
+    @suppress JLD.save("../runs/" * fname * "_tree.jld", "tree", T)
+end
+
+function loadTree(fname)
+    CMD_ARGS[:savename] = "benchmarkRun_" * split(fname, '_')[end]
+    pomdp = @suppress JLD.load("../runs/" * fname * "_pomdp.jld")["pomdp"]
+    TREE = @suppress JLD.load("../runs/" * fname * "_tree.jld")["tree"]
+    return (pomdp, TREE)
+end
 
 # Check if item is in dict or keys(dict)
 Base.in(item::BeliefRecord, keys::Base.KeySet{BeliefRecord,Dict{BeliefRecord,Float64}}) = any(Ref(item) .≂ keys)

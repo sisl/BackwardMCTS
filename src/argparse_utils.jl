@@ -9,7 +9,11 @@ function parse_commandline()
             arg_type = Int
             default = 4
 
-        "--t_and_o_prob"
+        "--t_prob"
+            arg_type = Float64
+            default = 0.8
+
+        "--o_prob"
             arg_type = Float64
             default = 0.8
 

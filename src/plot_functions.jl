@@ -139,7 +139,7 @@ function plot_Tree_avg_reachability_curves(TREE)
     f = plot()
     N = length(p_bmcts)
     A = repeat(tsteps, 2)
-    B = vcat([["Empirical Value (Any Observations)" for _ in 1:N],
+    B = vcat([["Forward Monte Carlo Simulations" for _ in 1:N],
               ["BMCTS Approximation" for _ in 1:N]]...)
     C = vcat([s_upper, p_bmcts]...)
 
@@ -161,7 +161,7 @@ function plot_Tree_avg_reachability_curves(TREE)
 
     title!(g, "Errors in Reachability Probabilities of Belief Nodes")
     xlabel!(g, "Timesteps Backward")
-    ylabel!(g, "BMCTS Absolute Error\n(w.r.t. Empirical Value)")
+    ylabel!(g, "BMCTS Absolute Error in Reachability Prob.\n(w.r.t. Forward MC Simulations w/ Preset Obs.)")
 
     savefig(g, "../runs/" * CMD_ARGS[:savename] * "plot22.pdf")
 
@@ -345,14 +345,14 @@ end
 
 
 
-function heatmap_Tree_kdtree(TREE; sigma_vals=[1e-4, 1e-3, 1e-2, 5e-2, 1e-1, 3e-1, 5e-1, 1e0])
+function heatmap_Tree_kdtree(TREE; sigma_vals=[1e-4, 1e-3, 1e-2, 5e-2, 1e-1, 3e-1, 5e-1, 1e0], upper_bound=false)
     kdtree = create_kdtree(TREE)
     kdtree_approx = []
     kdtree_scores = []
     kdtree_tsteps = []
 
     for sigma in sigma_vals
-        _, kdbayes_probs, kd_scores, kd_tsteps = benchmark_kdtree_diameter(kdtree, pomdp, final_state; sigma=sigma, upper_bound=false)
+        _, kdbayes_probs, kd_scores, kd_tsteps = benchmark_kdtree_diameter(kdtree, pomdp, final_state; sigma=sigma, upper_bound=upper_bound)
         push!(kdtree_approx, kdbayes_probs)
         push!(kdtree_scores, kd_scores)
         push!(kdtree_tsteps, kd_tsteps)
@@ -365,19 +365,31 @@ function heatmap_Tree_kdtree(TREE; sigma_vals=[1e-4, 1e-3, 1e-2, 5e-2, 1e-1, 3e-
     Y = Int.(sort(unique(tsteps)))
     popfirst!(Y)  # pop the t=0 entry
     Z = fill(NaN, size(Y, 1), size(X, 1))
+    Q = fill(NaN, size(Y, 1), size(X, 1))
     
     for i in eachindex(X), j in Y
         spp = (tsteps .== j)
         val1 = kdtree_approx[i]
         Z[j, i] = mean(abs.((val1[spp] .- val0[spp]) ./ val0[spp]))
+        Q[j, i] = mean(abs.(val1[spp] .- val0[spp]))
     end
 
     f = heatmap(eachindex(X),Y,Z, xticks = (eachindex(X), X))
 
-    title!(f, "Relative Errors of Reachability Probabilities")
-    xlabel!(f, "Percentage of Corresponding Voronoi Cell Radius")
+    title!(f, "Mean Relative Errors of Reachability Probabilities")
+    xlabel!(f, "Distance from Voronoi Cell Centroid (× Cell Radius)")
     ylabel!(f, "Timesteps Backward")
 
     savefig(f, "../runs/" * CMD_ARGS[:savename] * "plot42.pdf")
-    return f
+
+
+    g = heatmap(eachindex(X),Y,Q, xticks = (eachindex(X), X))
+
+    title!(g, "Mean Absolute Errors of Reachability Probabilities")
+    xlabel!(g, "Distance from Voronoi Cell Centroid (× Cell Radius)")
+    ylabel!(g, "Timesteps Backward")
+
+    savefig(g, "../runs/" * CMD_ARGS[:savename] * "plot43.pdf")
+
+    return (f,g)
 end

@@ -19,8 +19,8 @@ RNG = MersenneTwister(CMD_ARGS[:noise_seed])
 pomdp = SimpleGridWorldPOMDP(size=(CMD_ARGS[:gridsize], CMD_ARGS[:gridsize]),
                             rewards=Dict(GWPos(2,3)=>-10.0, GWPos(3,1)=>+25.0)
                             ,
-                            tprob = CMD_ARGS[:t_and_o_prob],
-                            oprob = CMD_ARGS[:t_and_o_prob])
+                            tprob = CMD_ARGS[:t_prob],
+                            oprob = CMD_ARGS[:o_prob])
 
 tab_pomdp = tabulate(pomdp)
 actions_pomdp = actions(pomdp)
@@ -42,7 +42,7 @@ LP_Solver = LP_Solver_config(Gurobi.Env(), zDistribution_exp(exp_const=CMD_ARGS[
 TREE = search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, getd(CMD_ARGS, [:noise_seed, :sims_per_thread, :no_of_threads, :exploration_const, :rollout_random])...)
 
 # Save tree to local disk
-saveTree(TREE, CMD_ARGS[:savename])
+saveTree(pomdp, TREE, CMD_ARGS[:savename])
 
 # # Validate BMCTS nodes
 # probs, scores, tsteps = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=false, verbose=false)
