@@ -79,7 +79,7 @@ function benchmark_kdtree(kdtree::KDTree_and_probs, pomdp::POMDP, des_final_stat
 end
 
 
-function benchmark_kdtree_diameter(kdtree::KDTree_and_probs, pomdp::POMDP, des_final_state; sigma::Float64, upper_bound=false, verbose=false)
+function benchmark_kdtree_diameter(kdtree::KDTree_and_probs, pomdp::POMDP, des_final_state; sigma::Float64, upper_bound=false, verbose=false, custom_policy=nothing)
     # Benchmark a constructed KDTree by perturbing its elements.
     # Choose `sigma` ∈ [0,1], the fraction of cell radius.
     
@@ -112,7 +112,7 @@ function benchmark_kdtree_diameter(kdtree::KDTree_and_probs, pomdp::POMDP, des_f
         bayes_prob = bayesian_prob(tab_pomdp, acts, dp, hist)
 
         # Validation:
-        _, score = batch_fwd_simulations(m_RNG, pomdp, CMD_ARGS[:val_epochs], des_final_state, dp, convert_aos(pomdp, hist), upper_bound=upper_bound, verbose=verbose);
+        _, score = batch_fwd_simulations(m_RNG, pomdp, CMD_ARGS[:val_epochs], des_final_state, dp, convert_aos(pomdp, hist), upper_bound=upper_bound, verbose=verbose, custom_policy=custom_policy);
 
 
         if verbose

@@ -81,10 +81,10 @@ function heatmap_Tree_on_gridworld(pomdp, TREE; metric=:total)
 end
 
 
-function plot_Tree_avg_reachability_curves(TREE)
+function plot_Tree_avg_reachability_curves(TREE; custom_policy=nothing)
     """ Plot the three the curves of reachability. """
-    p_bmcts, s_lower, tsteps = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=false)
-    _, s_upper, _ = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=true)
+    p_bmcts, s_lower, tsteps = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=false, custom_policy=custom_policy)
+    _, s_upper, _ = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=true, custom_policy=custom_policy)
 
     vals_sort_func((vals, times)) = (times, -vals)
     sp = sortperm(tuple.(p_bmcts, tsteps), by=vals_sort_func)
@@ -382,7 +382,7 @@ function heatmap_Tree_kdtree(TREE; sigma_vals=[1e-4, 1e-3, 1e-2, 5e-2, 1e-1, 3e-
 
     savefig(f, "../runs/" * CMD_ARGS[:savename] * "plot42.pdf")
 
-
+    # g = heatmap(eachindex(X),Y,Q.*1e3, xticks = (eachindex(X), X), colorbar_title="\n× 10⁻³", right_margin = 3Plots.mm)
     g = heatmap(eachindex(X),Y,Q, xticks = (eachindex(X), X))
 
     title!(g, "Mean Absolute Errors of Reachability Probabilities")
@@ -392,4 +392,65 @@ function heatmap_Tree_kdtree(TREE; sigma_vals=[1e-4, 1e-3, 1e-2, 5e-2, 1e-1, 3e-
     savefig(g, "../runs/" * CMD_ARGS[:savename] * "plot43.pdf")
 
     return (f,g)
+end
+
+
+function stats_Tree_kdtree(TREE; sigma_vals=[5e-2, 1e0], upper_bound=true, custom_policy=nothing)
+    kdtree = create_kdtree(TREE)
+    kdtree_approx_pol1 = []
+    kdtree_scores_pol1 = []
+    kdtree_tsteps_pol1 = []
+
+    kdtree_approx_pol2 = []
+    kdtree_scores_pol2 = []
+    kdtree_tsteps_pol2 = []
+
+    for sigma in sigma_vals
+        _, kdbayes_probs, kd_scores, kd_tsteps = benchmark_kdtree_diameter(kdtree, pomdp, final_state; sigma=sigma, upper_bound=upper_bound)
+        push!(kdtree_approx_pol1, kdbayes_probs)
+        push!(kdtree_scores_pol1, kd_scores)
+        push!(kdtree_tsteps_pol1, kd_tsteps)
+
+        _, kdbayes_probs, kd_scores, kd_tsteps = benchmark_kdtree_diameter(kdtree, pomdp, final_state; sigma=sigma, upper_bound=upper_bound, custom_policy=custom_policy)
+        push!(kdtree_approx_pol2, kdbayes_probs)
+        push!(kdtree_scores_pol2, kd_scores)
+        push!(kdtree_tsteps_pol2, kd_tsteps)
+    end
+
+    tsteps = kdtree_tsteps[1]
+
+    X = sigma_vals
+    Y = Int.(sort(unique(tsteps)))
+    popfirst!(Y)  # pop the t=0 entry
+    Z = fill(NaN, size(Y, 1), size(X, 1))
+    Q = fill(NaN, size(Y, 1), size(X, 1))
+    
+    for i in eachindex(X), j in Y
+        spp = (tsteps .== j)
+        val1 = kdtree_scores_pol1[i]
+        val2 = kdtree_scores_pol2[i]
+        Z[j, i] = mean(abs.((val2[spp] .- val1[spp]) ./ val1[spp]))
+        Q[j, i] = mean(abs.(val2[spp] .- val1[spp]))
+    end
+
+    f = heatmap(eachindex(X),Y,Z, xticks = (eachindex(X), X))
+
+    title!(f, "Mean Relative Errors of Reachability Probabilities")
+    xlabel!(f, "Distance from Voronoi Cell Centroid (× Cell Radius)")
+    ylabel!(f, "Timesteps Backward")
+
+    savefig(f, "../runs/" * CMD_ARGS[:savename] * "plot52.pdf")
+
+    # g = heatmap(eachindex(X),Y,Q.*1e3, xticks = (eachindex(X), X), colorbar_title="\n× 10⁻³", right_margin = 3Plots.mm)
+    g = heatmap(eachindex(X),Y,Q, xticks = (eachindex(X), X))
+
+    title!(g, "Mean Absolute Errors of Reachability Probabilities")
+    xlabel!(g, "Distance from Voronoi Cell Centroid (× Cell Radius)")
+    ylabel!(g, "Timesteps Backward")
+
+    savefig(g, "../runs/" * CMD_ARGS[:savename] * "plot53.pdf")
+
+    return (f,g)
+    # return (kdtree_approx_pol1, kdtree_scores_pol1, kdtree_tsteps_pol1, kdtree_approx_pol2, kdtree_scores_pol2, kdtree_tsteps_pol2)
+
 end

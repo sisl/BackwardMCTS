@@ -33,7 +33,7 @@ policy = solve(solver, tab_pomdp);
 Γ = policy.alphas;
 
 # Create leaf belief
-final_state = GWPos(3,1)
+final_state = GWPos(2,3)
 β_final = get_leaf_belief(pomdp, final_state)
 
 # Create BMCTS
@@ -44,11 +44,12 @@ TREE = search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, get
 # Save tree to local disk
 saveTree(pomdp, TREE, CMD_ARGS[:savename])
 
-# # Validate BMCTS nodes
-# probs, scores, tsteps = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=false, verbose=false)
+# Validate BMCTS nodes
+probs1, scores1, tsteps1 = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=false, verbose=false)
+stats(probs1, scores1, tsteps1)
 
-# # Dump results to file
-# csvdump(probs, scores, tsteps, CMD_ARGS)
+# Dump results to file
+csvdump(probs1, scores1, tsteps1, CMD_ARGS)
 
 # Construct and benchmark kdtree
 # include("KDTree.jl")

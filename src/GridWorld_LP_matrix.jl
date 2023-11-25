@@ -127,7 +127,7 @@ function validate(O, T, Γ, αj, β_t, LP_Solver_model, z_val)
     optimize!(model)
     # @show termination_status(model)
     
-    if termination_status(model) == JuMP.MathOptInterface.INFEASIBLE || termination_status(model) == JuMP.MathOptInterface.OTHER_ERROR || termination_status(model) == JuMP.MathOptInterface.INFEASIBLE_OR_UNBOUNDED
+    if termination_status(model) == JuMP.INFEASIBLE || termination_status(model) == JuMP.OTHER_ERROR || termination_status(model) == JuMP.INFEASIBLE_OR_UNBOUNDED
         return zeros(1,no_of_states), Inf, A, b, c
 
     else
@@ -183,7 +183,7 @@ function get_z_high(O, T, Γ, αj, β_t, LP_Solver_model)
     @objective(model, Max, z)
     optimize!(model)
 
-    if termination_status(model) == JuMP.MathOptInterface.INFEASIBLE || termination_status(model) == JuMP.MathOptInterface.OTHER_ERROR || termination_status(model) == JuMP.MathOptInterface.INFEASIBLE_OR_UNBOUNDED
+    if termination_status(model) == JuMP.INFEASIBLE || termination_status(model) == JuMP.OTHER_ERROR || termination_status(model) == JuMP.INFEASIBLE_OR_UNBOUNDED
         return 0.0
         
     else

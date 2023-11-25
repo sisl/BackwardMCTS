@@ -65,7 +65,7 @@ function validate(O, T, Γ, αj, β_t, LP_Solver)
     optimize!(model)
     # @show termination_status(model)
     
-    if termination_status(model) == JuMP.MathOptInterface.INFEASIBLE || termination_status(model) == JuMP.MathOptInterface.OTHER_ERROR || termination_status(model) == JuMP.MathOptInterface.INFEASIBLE_OR_UNBOUNDED
+    if termination_status(model) == JuMP.INFEASIBLE || termination_status(model) == JuMP.OTHER_ERROR || termination_status(model) == JuMP.INFEASIBLE_OR_UNBOUNDED
         return zeros(1,no_of_states), Inf, nothing
 
     elseif JuMP.result_count(model) > 1    # there are more than 1 solutions to the LP

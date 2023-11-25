@@ -127,13 +127,21 @@ function stats(probs, scores, tsteps)
     end
 
     for t in sort(unique(tsteps))
-        a,b,c,d = round.([minimum(res[t]), median(res[t]), mean(res[t]), maximum(res[t])].*100 ; digits=4)  # percent
+        a,b,c,d = round.([minimum(res[t]), median(res[t]), mean(res[t]), maximum(res[t])].*100 ; digits=6)  # percent
         l = length(res[t])
         println("Timestep $(Int(t)) has $l items: (min, median, mean, max) = ($a%, $b%, $c%, $d%)")
     end
 end
 
 function get_tree_nodes(TREE)
+    # Get all nodes in the BackwardTree.
     items = collect(keys(TREE.P))
     return Set([belRec.β for belRec in items])
+end
+
+function shrink_tree_nodes!(TREE; depths=[2])
+    # Shrink BackwardTree s.t. only nodes at a certain depths exists.
+    items = collect(keys(TREE.P))
+    foo = [pop!(TREE.P, belRec) for belRec in items if !(depth(belRec.ao) in depths)]
+    return
 end
