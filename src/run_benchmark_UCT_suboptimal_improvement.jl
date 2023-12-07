@@ -16,7 +16,10 @@ Random.seed!(CMD_ARGS[:noise_seed])
 
 # Create pomdp
 pomdp = SimpleGridWorldPOMDP(size=(CMD_ARGS[:gridsize], CMD_ARGS[:gridsize]),
-                            rewards=Dict(GWPos(2,3)=>-10.0, GWPos(3,1)=>+25.0)
+                            rewards=Dict(GWPos(4,2)=>+30.0, 
+                                         GWPos(6,7)=>+20.0,
+                                         GWPos(2,5)=>-25.0,
+                                         GWPos(7,4)=>-15.0)
                             ,
                             tprob = CMD_ARGS[:t_prob],
                             oprob = CMD_ARGS[:o_prob])
@@ -34,7 +37,7 @@ policy = solve(solver, tab_pomdp);
 
 # Create leaf belief
 #! Deliberately aiming for the undesired final state
-final_state = GWPos(2,3)
+final_state = GWPos(2,5)
 β_final = get_leaf_belief(pomdp, final_state)
 
 # Create BMCTS
