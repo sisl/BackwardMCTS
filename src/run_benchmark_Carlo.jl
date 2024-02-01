@@ -34,15 +34,16 @@ final_state = CarloDiscreteState(6, 6, :within_limit, :straight)
 # Create BMCTS
 max_t = CMD_ARGS[:max_timesteps]
 LP_Solver = LP_Solver_config(Gurobi.Env(), zDistribution_exp(exp_const=CMD_ARGS[:z_dist_exp_const]))
-TREE = search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, getd(CMD_ARGS, [:sims_per_thread, :no_of_threads, :exploration_const, :rollout_random])...)
+TREE = search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, getd(CMD_ARGS, [:noise_seed, :sims_per_thread, :no_of_threads, :exploration_const, :rollout_random])...)
 
 # Save tree to local disk
-saveTree(TREE, CMD_ARGS[:savename])
+saveTree(pomdp, TREE, CMD_ARGS[:savename])
 
 # Validate BMCTS nodes
-probs, scores, tsteps = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=false, verbose=false)
+probs1, scores1, tsteps1 = validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, max_t, final_state, CMD_ARGS, upper_bound=false, verbose=false)
+stats(probs1, scores1, tsteps1)
 
 # Dump results to file
-csvdump(probs, scores, tsteps, CMD_ARGS)
+csvdump(probs1, scores1, tsteps1, CMD_ARGS)
 
 @info "Done!"

@@ -227,6 +227,7 @@ end
 function saveTree(pomdp, T, fname)
     @suppress JLD.save("../runs/" * fname * "_pomdp.jld", "pomdp", pomdp)
     @suppress JLD.save("../runs/" * fname * "_tree.jld", "tree", T)
+    @info "Saved TREE: $(fname)"
 end
 
 function loadTree(fname)
