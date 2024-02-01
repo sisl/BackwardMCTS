@@ -1,9 +1,9 @@
 @info "Detected $(Threads.nthreads()) threads."
 
 include("utils.jl")
-include("GridWorld_MCTS_matrix.jl")
-include("Validation_MCTS.jl")
-include("../../Carlo/src/likelihood_learning.jl")
+include("construct_tree.jl")
+include("forward_sims.jl")
+include("./Carlo/likelihood_learning.jl")
 
 using Gurobi
 using QMDP
@@ -18,7 +18,7 @@ Random.seed!(CMD_ARGS[:noise_seed])
 # Create pomdp
 pomdp = CarloPOMDP()
 actions_pomdp = actions(pomdp)
-tab_pomdp = tabulate(pomdp; dir="../../Carlo/")
+tab_pomdp = tabulate(pomdp; dir="./Carlo/")
 no_of_actions = length(actions(pomdp))
 no_of_states = length(states(pomdp))
 

@@ -1,5 +1,5 @@
 include("utils.jl")
-include("VertexPivot.jl")
+include("operate_lp.jl")
 
 using Suppressor
 using JuMP
@@ -18,6 +18,7 @@ function validate(O, T, Γ, αj, β_t, LP_Solver_model, z_val)
     no_of_states = length(β_t)
     eps_var = 1.0
     
+    ### Non-matrix variables (commented out, we now create their matrix equivalent below) ###
     # @variable(model, x[1:no_of_states])
     # @variable(model, u[1:no_of_states])
     # @variable(model, y)
@@ -146,7 +147,7 @@ function get_z_high(O, T, Γ, αj, β_t, LP_Solver_model)
     @variable(model, x[1:no_of_states])
     @variable(model, z)
 
-    # Constraint 1: Updated belief should be a valid prob. distribution (RM: this is actually just the normalizing constant for next belief)
+    # Constraint 1: Updated belief should be a valid prob. distribution (Edit: No longer needed; this is actually just the normalizing constant for next belief)
     # @constraint(model, 1.0 .== ones(1,no_of_states)*O*T*x)
     
     # Constraint 2: Alpha-vector constraints
@@ -174,7 +175,7 @@ function get_z_high(O, T, Γ, αj, β_t, LP_Solver_model)
     Oa = reshape(diag(O), 1, :)
     @constraint(model, dot(Oa*T, x) == z)
 
-    # # Constraint 6: Real vs Approx next belief should not be far
+    # # Constraint 6: Real vs Approx next belief should not be far (Edit: Might improve result, but can cause infeasibility)
     # @variable(model, p1)
     # @constraint(model, O*T*x - β_t .<= p1)
     # @constraint(model, β_t - O*T*x .<= p1)
@@ -209,13 +210,6 @@ function validate_single_action(RNG, tab_pomdp, obs_id, policy, β_next, LP_Solv
         return nothing
     end
     # @show J
-
-    # if J ==0
-    #     @show "-----"
-    #     @show αj
-    #     @show β_next 
-    #     @show z_val
-    # end
 
     LP = LinearProgram(A, b, c, X, no_of_states, Set(), αj);
 

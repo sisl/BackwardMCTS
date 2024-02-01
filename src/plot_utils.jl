@@ -2,55 +2,6 @@ using Plots
 using StatsPlots
 include("KDTree.jl")
 
-# function heatmap_Tree_on_gridworld(pomdp, TREE; metric=:local)
-#     """ Plot all nodes in the tree as a heatmap onto the gridworld. """
-#     vals = zeros(pomdp.size)
-#     N = zeros(pomdp.size)
-
-#     for (i, belRec) in enumerate(keys(TREE.P))
-#         bel, aos = belRec.β, belRec.ao
-#         p = TREE.P[belRec]
-        
-#         if metric==:total
-#             vals += reshape_GW(bel)
-#         else
-#             N_new = N + (reshape_GW(bel) .> 0)
-#             # vals = (vals*N + reshape_GW(bel)) ./ (N_new)
-#             vals += reshape_GW(bel)
-#             replace!(vals, NaN=>0.0)
-#         end
-
-#         N = N_new
-#     end
-
-#     vals = vals ./ N
-#     @show vals
-#     @show N
-
-#     f = heatmap(reverse(vals, dims=1), color=:grayC)
-#     title!(f, "Reachability Probability Comparisons")
-#     xlabel!(f, "Nodes in the Tree (Sorted)")
-#     ylabel!(f, "Reachability Probability")
-
-#     savefig(f, "../runs/" * CMD_ARGS[:savename] * "plot3.pdf")
-#     return f
-# end
-
-function empty_gridworld(pomdp)
-    f = heatmap(zeros(pomdp.size), color=:grayC, aspect_ratio=:equal,
-    xlims=(0.5, pomdp.size[1]+0.5),
-    xticks=collect(1:pomdp.size[1]),
-    ylims=(0.5, pomdp.size[end]+0.5),
-    yticks=collect(1:pomdp.size[end]),
-    legend=false,
-    grid=:all, minorgrid=true)
-
-    title!(f, "State and Reward Space of the Gridworld")
-    savefig(f, "../runs/" * CMD_ARGS[:savename] * "plot0.pdf")
-    return f
-end
-
-
 function heatmap_Tree_on_gridworld(pomdp, TREE; metric=:total)
     """ Plot all nodes in the tree as a heatmap onto the gridworld. """
     vals = zeros(pomdp.size)

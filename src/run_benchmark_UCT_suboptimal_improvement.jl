@@ -1,9 +1,9 @@
 @info "Detected $(Threads.nthreads()) threads."
 
 include("utils.jl")
-include("gridworldpomdp.jl")
-include("GridWorld_MCTS_matrix.jl")
-include("Validation_MCTS.jl")
+include("construct_tree.jl")
+include("forward_sims.jl")
+include("./GridWorld/gridworldpomdp.jl")
 
 using Gurobi
 using QMDP

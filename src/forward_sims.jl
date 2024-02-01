@@ -1,5 +1,5 @@
 include("utils.jl")
-include("gridworldpomdp.jl")
+include("./GridWorld/gridworldpomdp.jl")
 
 using POMDPs
 using POMDPPolicies: solve
@@ -116,14 +116,15 @@ function validation_probs_and_scores_UCT(TREE, pomdp, tab_pomdp, actions_pomdp, 
     return probs, scores, tsteps
 end
 
-function stats(probs, scores, tsteps)
+function stats(probs, scores, tsteps; use_probs=false)
     println("MAE: $(mae(probs-scores))")
     println("STE: $(ste(probs-scores))")
 
     res = Dict(t => [] for t in unique(tsteps))
 
     for (p,s,t) in zip(probs, scores, tsteps)
-        push!(res[t], s)
+        v = use_probs ? p : s
+        push!(res[t], v)
     end
 
     for t in sort(unique(tsteps))

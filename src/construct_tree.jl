@@ -1,6 +1,6 @@
 include("utils.jl")
-include("VertexPivot.jl")
-include("GridWorld_LP_matrix.jl")
+include("operate_lp.jl")
+include("solve_lp.jl")
 
 
 @with_kw mutable struct BackwardTree

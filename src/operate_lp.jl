@@ -175,30 +175,6 @@ function get_valid_partition(A, X)
 end
 
 
-# function get_valid_partition(A, X)
-#     # 1. Instead of adding columns, remove them one by one.
-#     # or 2. Solve an auxiliary LP that find you which columns (of amount size(A,1)) that 
-#     # should be chosen s.t. the chosen columns are linearly independent. 
-# end
-
-
-# function get_valid_auxiliary_partition(A, b, X, LP_Solver)
-#     model = Model(LP_Solver)
-
-#     (m, n) = size(A);
-#     # Z = diagm(vec(b .>= 0.0) - vec(b .< 0.0));
-    
-#     # @variable(model, x[1:n] >= 0);
-#     @variable(model, z[1:m] >= 0);
-    
-#     # @constraint(model, A*x + Z*z .== b);
-#     @objective(model, Max, sum([z*i for ]));
-#     # optimize!(model);
-
-
-# end
-
-
 function get_valid_partition_aux(RNG, A, X; verbose=false)
     """ Find the indices of a valid partition on the optimal poligon. """
     # @assert rank(A) == size(A, 1)    # matrix A must be full-rank

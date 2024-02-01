@@ -1,9 +1,9 @@
 @info "Detected $(Threads.nthreads()) threads."
 
 include("utils.jl")
-include("gridworldpomdp.jl")
-include("GridWorld_MCTS_matrix.jl")
-include("Validation_MCTS.jl")
+include("construct_tree.jl")
+include("forward_sims.jl")
+include("./GridWorld/gridworldpomdp.jl")
 
 using Gurobi
 using QMDP
@@ -55,7 +55,7 @@ stats(probs1, scores1, tsteps1)
 csvdump(probs1, scores1, tsteps1, CMD_ARGS)
 
 # Construct and benchmark kdtree
-# include("KDTree.jl")
+# include("kdtree.jl")
 # kdtree = create_kdtree(TREE)
 # tree_probs, bayes_probs, kd_scores = benchmark_kdtree(kdtree, pomdp, final_state; sigma=0.1, upper_bound=false)
 

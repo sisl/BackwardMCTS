@@ -1,5 +1,5 @@
 include("utils.jl")
-include("GridWorld_MCTS_matrix.jl")
+include("construct_tree.jl")
 
 using NearestNeighbors
 using Distances: evaluate
