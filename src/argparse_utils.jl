@@ -43,7 +43,7 @@ function parse_commandline()
 
         "--val_epochs"
             arg_type = Int
-            default = 1000
+            default = 10000
 
         "--noise_seed"   # should be a prime number, due to how RNG is setup on different threads.
             arg_type = Int

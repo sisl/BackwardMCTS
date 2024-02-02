@@ -20,8 +20,7 @@ pomdp = SimpleGridWorldPOMDP(size=(CMD_ARGS[:gridsize], CMD_ARGS[:gridsize]),
                             rewards=Dict(GWPos(4,2)=>+30.0, 
                                          GWPos(6,7)=>+20.0,
                                          GWPos(2,5)=>-25.0,
-                                         GWPos(7,4)=>-15.0)
-                            ,
+                                         GWPos(7,4)=>-15.0),
                             tprob = CMD_ARGS[:t_prob],
                             oprob = CMD_ARGS[:o_prob])
 
@@ -54,7 +53,7 @@ stats(probs1, scores1, tsteps1)
 # Dump results to file
 csvdump(probs1, scores1, tsteps1, CMD_ARGS)
 
-# Construct and benchmark kdtree
+# Construct and benchmark Voronoi kdtree
 # include("kdtree.jl")
 # kdtree = create_kdtree(TREE)
 # tree_probs, bayes_probs, kd_scores = benchmark_kdtree(kdtree, pomdp, final_state; sigma=0.1, upper_bound=false)
