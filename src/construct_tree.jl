@@ -203,7 +203,7 @@ function merge_trees!(master::BackwardTree, localtrees::AbstractVector{BackwardT
 end
 
 
-function search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, noise_seed, sims_per_thread, no_of_threads, exploration_const=1.0, rollout_random=false)
+function search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, noise_seed, sims_per_thread, threads, exploration_const=1.0, rollout_random=false)
     
     Params = Dict([:policy, :max_t, :LP_Solver, :exploration_const, :rollout_random, :max_t, :tab_pomdp, :actions_pomdp]
                     .=> [policy, max_t, LP_Solver, exploration_const, rollout_random, max_t, tab_pomdp, collect(actions_pomdp)])
@@ -216,9 +216,9 @@ function search!(tab_pomdp, actions_pomdp, policy, β_final, max_t, LP_Solver, n
         println("  Timestep:\t  $(t) of $(max_t)")
         
         for trd = Tqdm(1:sims_per_thread)
-            localtrees = Array{BackwardTree}(undef, no_of_threads)  # undef initialization
+            localtrees = Array{BackwardTree}(undef, threads)  # undef initialization
 
-            Threads.@threads for m = 1:no_of_threads
+            Threads.@threads for m = 1:threads
                 # Initialize local tree from the global one
                 m_Tree = deepcopy(TREE)
                 m_RNG = MersenneTwister(noise_seed*trd + m)

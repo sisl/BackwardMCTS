@@ -2,6 +2,7 @@ include("utils.jl")
 include("operate_lp.jl")
 
 using Suppressor
+using Gurobi: Optimizer, Env
 using JuMP
 using LinearAlgebra: Diagonal, dot, rank
 using StatsBase: sample, Weights
@@ -33,7 +34,7 @@ function validate(O, T, Γ, αj, β_t, LP_Solver_model, z_val)
     # @variable(model, m[1:no_of_states])
     # @variable(model, n[1:no_of_states])
     
-    model = Model(() -> Gurobi.Optimizer(LP_Solver_model))
+    model = Model(() -> Optimizer(LP_Solver_model))
 
     set_silent(model)  # no verbose 
     set_optimizer_attribute(model, "Threads", 1)  # single Gurobi call should use single thread 
@@ -139,7 +140,7 @@ end
 function get_z_high(O, T, Γ, αj, β_t, LP_Solver_model)
     no_of_states = length(β_t)
 
-    model = Model(() -> Gurobi.Optimizer(LP_Solver_model))
+    model = Model(() -> Optimizer(LP_Solver_model))
     
     set_silent(model)  # no verbose 
     set_optimizer_attribute(model, "Threads", 1)  # single Gurobi call should use single thread 
@@ -211,9 +212,9 @@ function validate_single_action(RNG, tab_pomdp, obs_id, policy, β_next, LP_Solv
     end
     # @show J
 
-    LP = LinearProgram(A, b, c, X, no_of_states, Set(), αj);
+    LP = LinearProgram(A, b, c, X, length(β_next), Set(), αj);
 
-    B = get_valid_partition_aux(RNG, A, X; verbose=false);
+    B = get_valid_partition(RNG, A, X; verbose=false);
     
     if isnothing(B)
         return nothing
@@ -285,7 +286,7 @@ function sample_from_belief_subspace(RNG, LP, tab_pomdp, obs_id)
     end
 end
 
-function samples_from_belief_subspace(RNG, LP, tab_pomdp, obs_id, belief_N)   # old (also has different input fields)
+function many_samples_from_belief_subspace(RNG, LP, tab_pomdp, obs_id, belief_N)   # old (also has different input fields)
     X_stars = reshape(Float64[], LP.no_of_states, 0)
     X_stars_rchblty_probs = Float64[]
     samples = []

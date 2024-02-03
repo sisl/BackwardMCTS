@@ -185,6 +185,12 @@ version = "4.12.0"
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
 
+[[Compose]]
+deps = ["Base64", "Colors", "DataStructures", "Dates", "IterTools", "JSON", "LinearAlgebra", "Measures", "Printf", "Random", "Requires", "Statistics", "UUIDs"]
+git-tree-sha1 = "bf6570a34c850f99407b494757f5d7ad233a7257"
+uuid = "a81c6b42-2e10-5240-aca2-a61377ecd94b"
+version = "0.9.5"
+
 [[ConcurrentUtilities]]
 deps = ["Serialization", "Sockets"]
 git-tree-sha1 = "8cfa272e8bdedfa88b6aefbbca7c19f1befac519"
@@ -929,6 +935,12 @@ deps = ["CommonRLInterface", "Distributions", "LinearAlgebra", "POMDPLinter", "P
 git-tree-sha1 = "36d32d62e036ae8ebb9b8efe9e8658f902815700"
 uuid = "08074719-1b2a-587c-a292-00f91cc44415"
 version = "0.3.13"
+
+[[POMDPModels]]
+deps = ["ColorSchemes", "Compose", "Distributions", "POMDPTools", "POMDPs", "Printf", "Random", "StaticArrays", "StatsBase"]
+git-tree-sha1 = "5f2a0adf8a4e4f9de89e31f2c583b40b088ad201"
+uuid = "355abbd5-f08e-5560-ac9e-8b5f2592a0ca"
+version = "0.4.20"
 
 [[POMDPPolicies]]
 deps = ["Distributions", "LinearAlgebra", "POMDPTools", "POMDPs", "Parameters", "Random", "Reexport", "SparseArrays", "StatsBase"]

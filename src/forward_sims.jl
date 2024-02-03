@@ -1,11 +1,9 @@
 include("utils.jl")
-include("./GridWorld/gridworldpomdp.jl")
 
 using POMDPs
-using POMDPPolicies: solve
 using BeliefUpdaters: DiscreteBelief, NothingUpdater
-using POMDPSimulators: stepthrough, updater
-using QMDP
+using POMDPSimulators: stepthrough
+using QMDP: QMDPSolver
 using ProgressBars
 
 mutable struct DefinedPolicy <: Policy
@@ -51,7 +49,7 @@ function run_fwd_simulation_sao(RNG, pomdp, b0, des_ao_traj, max_t; verbose=fals
     # global POL = policy
     # global B0 = b0
     # # tab_pomdp = PM; policy = POL; b0 = B0;
-    for (s,sp,a,o,r) in stepthrough(pomdp, policy, updater(policy), b0, rand(RNG, b0), "s,sp,a,o,r", rng=RNG, max_steps=max_t)
+    for (s,sp,a,o,r) in stepthrough(pomdp, policy, POMDPs.updater(policy), b0, rand(RNG, b0), "s,sp,a,o,r", rng=RNG, max_steps=max_t)
         if verbose
             println("In state $s")
             println("took action $a")

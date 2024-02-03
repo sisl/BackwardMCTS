@@ -13,7 +13,7 @@ using DataStructures: DefaultDict
 using StatsBase: sample, Weights
 using Parameters: @with_kw
 using Dates: now
-using Random
+using Random: seed!, MersenneTwister
 
 Tqdm(obj) = length(obj) == 1 ? obj : ProgressBars.tqdm(obj)
 
@@ -187,19 +187,7 @@ function getRandomSamplesInNSphere(RNG, center, radius, num_of_samples=100000)
     return radius .* U.^(1/dim) ./ normalizer .* X
 end
 
-
 isValidProb(A::AbstractArray) = all.(eachcol(A.>0)) .& all.(eachcol(A.<1))
-
-# function issingular(A::AbstractArray)
-#     # lpt = getrf!(A)
-#     try 
-#         # checknonsingular(lpt[3])
-#         inv(A)
-#     catch e
-#         (e isa SingularException) && return true
-#     end
-#     return false
-# end
 
 function issingular(A::AbstractArray)
     try

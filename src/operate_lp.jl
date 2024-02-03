@@ -143,39 +143,7 @@ end
 end
 
 
-function get_valid_partition(A, X)
-    @assert rank(A) == size(A, 1)    # matrix A must be full-rank
-
-    # Get non-zero vertex indices
-    ϵ = 1e-10
-    B = (1:length(X))[abs.(JuMP.value.(X)) .> ϵ]
-
-    if length(B) == size(A, 1)
-        return B
-    else
-        # Add zero vertices if required
-        V = collect(1:length(X))
-        deleteat!(V, B)
-        rank_des = length(B) + 1
-
-        for idx = length(V) : -1 : 1  #keep reverse
-            temp = vcat(B, [V[idx]])
-            AB = @view A[:,temp];
-            if rank(AB) == rank_des
-                push!(B, V[idx])
-                rank_des += 1
-            end
-            if rank(AB) == size(A, 1)
-                break
-            end
-        end
-
-        return sort(B)
-    end
-end
-
-
-function get_valid_partition_aux(RNG, A, X; verbose=false)
+function get_valid_partition(RNG, A, X; verbose=false)
     """ Find the indices of a valid partition on the optimal poligon. """
     # @assert rank(A) == size(A, 1)    # matrix A must be full-rank
 
