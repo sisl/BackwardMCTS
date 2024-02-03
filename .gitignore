@@ -1,7 +1,6 @@
 /.vscode
 /ipynb_checkpoints
 /dev
-/carlo
 
 */__pycache__/*
 *dev*

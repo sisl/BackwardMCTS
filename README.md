@@ -2,6 +2,9 @@
 
 Consturct a backward Monte Carlo tree and search to find portions of the belief space in POMDPs that are guaranteed to lead to a certain outcome. This package is integrated into the [POMDPs.jl](https://github.com/JuliaPOMDP/POMDPs.jl) ecosystem.
 
+This is the official repo for the paper:
+    
+    Yildiz, A., Yel, E., Vazquez-Chanlatte, M., Wray, K., Kochenderfer, M., Witwicki, S., "Backward Monte Carlo Tree Search: Charting Unsafe Regions in the Belief-Space" (2023, In Review).
 
 ## Installation
 
@@ -13,10 +16,6 @@ To install the pacakge in this repo, in a Julia REPL, run the following lines:
 using Pkg
 pkg"add https://github.com/sisl/BackwardMCTS"
 ```
-
-This is the official repo for the paper:
-    
-    Yildiz, A., Yel, E., Vazquez-Chanlatte, M., Wray, K., Kochenderfer, M., Witwicki, S., "Backward Monte Carlo Tree Search: Charting Unsafe Regions in the Belief-Space" (2023, In Review).
 
 ## Usage
 
