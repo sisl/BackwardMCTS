@@ -1,15 +1,43 @@
 # Backward Monte Carlo Tree Search
 
-Consturct a backward Monte Carlo tree and search to find portions of the belief space in POMDPs that are guaranteed to lead to a certain outcome. This package is integrated into the [POMDPs.jl](https://github.com/JuliaPOMDP/POMDPs.jl) ecosystem.
+Construct Monte Carlo trees **backward in time** to identify regions of the belief-space in Partially Observable Markov Decision Processes (POMDPs) that are **guaranteed to lead to a specified outcome** (e.g., failure or safety violation).
+
+Backward Monte Carlo Tree Search (BMCTS) enables:
+- Efficient exploration of unsafe belief regions
+- Formal characterization of risk in belief-space
+- Backward reasoning about future outcomes
+- Integration with existing POMDP solvers
+
+This package is integrated into the [POMDPs.jl](https://github.com/JuliaPOMDP/POMDPs.jl) ecosystem.
 
 <p align="center">
-  <img width="530" alt="Constructing a Monte Carlo tree backward in time." src="media/BackwardTreeSearch.png" />
+  <img width="530" alt="Backward construction of a Monte Carlo tree in belief space." src="media/BackwardTreeSearch.png" />
 </p>
 
 
-This is the official repo for the paper:
-    
-    Yildiz, A., Yel, E., Vazquez-Chanlatte, M., Wray, K., Kochenderfer, M., Witwicki, S., "Backward Monte Carlo Tree Search: Charting Unsafe Regions in the Belief-Space" (2023, In Review).
+
+## Publication
+
+This repository contains the reference implementation for:
+
+> Anil Yildiz, Esen Yel, Marcell Vazquez-Chanlatte, Kyle Wray, Mykel J. Kochenderfer, and Stefan J. Witwicki. 2026.  
+> **Backward Monte Carlo Tree Search: Charting Unsafe Regions in the Belief-Space.**  
+> *Journal of Artificial Intelligence Research* 85, Article 1 (January 2026), 37 pages.  
+> doi: 10.1613/jair.1.18011
+
+```bibtex
+@article{yildiz2026backward,
+  author  = {Yildiz, Anil and Yel, Esen and Vazquez-Chanlatte, Marcell and Wray, Kyle and Kochenderfer, Mykel J. and Witwicki, Stefan J.},
+  title   = {Backward Monte Carlo Tree Search: Charting Unsafe Regions in the Belief-Space},
+  journal = {Journal of Artificial Intelligence Research},
+  volume  = {85},
+  number  = {1},
+  pages   = {1--37},
+  year    = {2026},
+  month   = jan,
+  doi     = {10.1613/jair.1.18011}
+}
+```
 
 ## Installation
 
