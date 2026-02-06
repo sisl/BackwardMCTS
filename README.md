@@ -1,29 +1,15 @@
 # Backward Monte Carlo Tree Search
 
-Construct Monte Carlo trees **backward in time** to identify regions of the belief-space in Partially Observable Markov Decision Processes (POMDPs) that are **guaranteed to lead to a specified outcome** (e.g., failure or safety violation).
-
-Backward Monte Carlo Tree Search (BMCTS) enables:
-- Efficient exploration of unsafe belief regions
-- Formal characterization of risk in belief-space
-- Backward reasoning about future outcomes
-- Integration with existing POMDP solvers
-
-This package is integrated into the [POMDPs.jl](https://github.com/JuliaPOMDP/POMDPs.jl) ecosystem.
-
-<p align="center">
-  <img width="530" alt="Backward construction of a Monte Carlo tree in belief space." src="media/BackwardTreeSearch.png" />
-</p>
-
-
-
 ## Publication
 
-This repository contains the reference implementation for:
+This repository contains the reference implementation for the following publication.
 
 > Anil Yildiz, Esen Yel, Marcell Vazquez-Chanlatte, Kyle Wray, Mykel J. Kochenderfer, and Stefan J. Witwicki. 2026.  
 > **Backward Monte Carlo Tree Search: Charting Unsafe Regions in the Belief-Space.**  
 > *Journal of Artificial Intelligence Research* 85, Article 1 (January 2026), 37 pages.  
 > doi: 10.1613/jair.1.18011
+
+You may download the PDF free-of-charge [here](https://www.jair.org/index.php/jair/article/view/18011). You may cite the publication as follows.
 
 ```bibtex
 @article{yildiz2026backward,
@@ -38,6 +24,22 @@ This repository contains the reference implementation for:
   doi     = {10.1613/jair.1.18011}
 }
 ```
+
+## Overview 
+
+Construct Monte Carlo trees **backward in time** to identify regions of the belief-space in Partially Observable Markov Decision Processes (POMDPs) that are **guaranteed to lead to a specified outcome** (e.g., failure or safety violation).
+
+Backward Monte Carlo Tree Search (BMCTS) enables:
+- Efficient exploration of unsafe belief regions
+- Formal characterization of risk in belief-space
+- Backward reasoning about future outcomes
+- Integration with existing POMDP solvers
+
+This package is integrated into the [POMDPs.jl](https://github.com/JuliaPOMDP/POMDPs.jl) ecosystem.
+
+<p align="center">
+  <img width="530" alt="Backward construction of a Monte Carlo tree in belief space." src="media/BackwardTreeSearch.png" />
+</p>
 
 ## Installation
 
